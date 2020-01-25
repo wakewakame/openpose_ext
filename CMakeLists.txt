@@ -1,6 +1,4 @@
 cmake_minimum_required(VERSION 3.10)
-project(openpose_ext)
-add_subdirectory(src)
 
 # download openpose
 set(LIBRARIES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty")
@@ -24,3 +22,7 @@ if (NOT EXISTS ${OPENPOSE_DIR_PATH})
 	set(OPENPOSE_MODELS_DOWNLOADER_PATH "${OPENPOSE_MODELS_PATH}/getModels.bat")
 	execute_process(COMMAND ${OPENPOSE_MODELS_DOWNLOADER_PATH} WORKING_DIRECTORY ${OPENPOSE_MODELS_PATH})
 endif (NOT EXISTS ${OPENPOSE_DIR_PATH})
+
+# create project
+project(openpose_ext)
+add_subdirectory(src)
