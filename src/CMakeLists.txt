@@ -18,3 +18,4 @@ target_include_directories(openpose_ext PRIVATE
 )
 file(GLOB OPENPOSE_LIB_FILES "${OPENPOSE_DIR_PATH}/openpose/lib/*.lib")
 target_link_libraries(openpose_ext ${OPENPOSE_LIB_FILES})
+set_target_properties(openpose_ext PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:openpose_ext>")
