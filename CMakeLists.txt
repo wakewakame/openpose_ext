@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # download openpose
-set(LIBRARIES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty")
+set(LIBRARIES_PATH "${CMAKE_SOURCE_DIR}/3rdparty")
 if (NOT EXISTS ${LIBRARIES_PATH})
 	message(STATUS "create directory : ${LIBRARIES_PATH}")
 	file(MAKE_DIRECTORY "${LIBRARIES_PATH}")

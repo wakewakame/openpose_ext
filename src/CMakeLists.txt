@@ -11,4 +11,10 @@ message(STATUS "copy : model files")
 file(COPY "${OPENPOSE_DIR_PATH}/openpose/models" DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 # add source files
-add_executable(openpose_ext main.cpp)
+add_executable(openpose_ext main.cpp MinOpenPose.cpp)
+target_include_directories(openpose_ext PRIVATE
+	"${CMAKE_SOURCE_DIR}/include"
+	"${OPENPOSE_DIR_PATH}/openpose/include"
+)
+file(GLOB OPENPOSE_LIB_FILES "${OPENPOSE_DIR_PATH}/openpose/lib/*.lib")
+target_link_libraries(openpose_ext ${OPENPOSE_LIB_FILES})
