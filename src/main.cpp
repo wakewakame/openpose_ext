@@ -21,7 +21,10 @@ int main(int argc, char* argv[])
 			auto frame = std::make_unique<cv::Mat>();
 			cap.read(*frame);
 			mop.pushImage(std::move(frame)); // OpenPose ‚É‰æ‘œ‚ğ“n‚·
-			if (cv::waitKey(1) == 0x1b) return 0;
+			if (cv::waitKey(1) == 0x1b) {
+				mop.shutdown();
+				return 0;
+			}
 		}
 		break;
 		case MinimumOpenPose::ProcessState::Processing: // ˆ—’†
