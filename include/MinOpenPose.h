@@ -131,7 +131,7 @@ private:
 	};
 
 	// OpenPose のラッパークラス
-	op::Wrapper opWrapper;
+	std::unique_ptr<op::Wrapper> opWrapper;
 	// OpenPose を実行させるスレッド
 	std::thread opThread;
 	// OpenPose へ入力する画像を管理するクラス
@@ -174,6 +174,7 @@ public:
 	 * @return 起動が成功すると0が返る。失敗すると1が返る。
 	 */
 	int startup(
+		bool enableOpenposeProcess = true,
 		op::PoseModel poseModel = op::PoseModel::BODY_25,
 		op::Point<int> netInputSize = op::Point<int>(-1, 368)
 	);

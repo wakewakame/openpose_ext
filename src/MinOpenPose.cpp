@@ -114,6 +114,7 @@ MinimumOpenPose::~MinimumOpenPose()
 }
 
 int MinimumOpenPose::startup(
+	bool enableOpenposeProcess,
 	op::PoseModel poseModel,
 	op::Point<int> netInputSize
 )
@@ -123,29 +124,65 @@ int MinimumOpenPose::startup(
 	// 変数の初期化
 	jobCount = 0;
 	errorMessage.clear();
-	// OpenPose の設定
-	op::WrapperStructPose wrapperStructPose;
-	// 使用する骨格モデルの選択
-	wrapperStructPose.poseModel = poseModel;
-	// ネットワークの解像度の設定 (16の倍数のみ指定可能, -1は縦横比に合わせて自動計算される)
-	// 値は大きいほど精度が高く、処理も重い
-	wrapperStructPose.netInputSize = netInputSize;
-	// OpenPose に設定を適応
-	opWrapper.configure(wrapperStructPose);
-	// 画像入力 Worker の設定
-	opWrapper.setWorker(op::WorkerType::Input, opInput, true);
-	// 画像出力 Worker の設定
-	opWrapper.setWorker(op::WorkerType::Output, opOutput, true);
-	// OpenPose の実行
-	opThread = std::thread([&] {
-		try {
-			opWrapper.exec();
-		}
-		catch(const std::exception& e) {
-			std::lock_guard<std::mutex> inOutLock(inOutMtx);
-			errorMessage.push_back(e.what());
-		}
-	});
+	opWrapper = enableOpenposeProcess ? std::make_unique<op::Wrapper>() : nullptr;
+	if (static_cast<bool>(opWrapper))
+	{
+		// OpenPose の設定
+		op::WrapperStructPose wrapperStructPose;
+		// 使用する骨格モデルの選択
+		wrapperStructPose.poseModel = poseModel;
+		// ネットワークの解像度の設定 (16の倍数のみ指定可能, -1は縦横比に合わせて自動計算される)
+		// 値は大きいほど精度が高く、処理も重い
+		wrapperStructPose.netInputSize = netInputSize;
+		// OpenPose に設定を適応
+		opWrapper->configure(wrapperStructPose);
+		// 画像入力 Worker の設定
+		opWrapper->setWorker(op::WorkerType::Input, opInput, true);
+		// 画像出力 Worker の設定
+		opWrapper->setWorker(op::WorkerType::Output, opOutput, true);
+		// OpenPose の実行
+		opThread = std::thread([&] {
+			try {
+				opWrapper->exec();
+			}
+			catch (const std::exception& e) {
+				std::lock_guard<std::mutex> inOutLock(inOutMtx);
+				errorMessage.push_back(e.what());
+			}
+		});
+	}
+	else
+	{
+		opThread = std::thread([&] {
+			try {
+				if (
+					(!static_cast<bool>(opInput)) ||
+					(!static_cast<bool>(opOutput)) ||
+					(!opInput->isRunning()) ||
+					(!opOutput->isRunning())
+					) {
+					return;
+				}
+				opInput->initializationOnThreadNoException();
+				opOutput->initializationOnThreadNoException();
+				while (
+					static_cast<bool>(opInput) &&
+					static_cast<bool>(opOutput) &&
+					opInput->isRunning() &&
+					opOutput->isRunning()
+					)
+				{
+					std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datumsPtr;
+					opInput->checkAndWork(datumsPtr);
+					opOutput->checkAndWork(datumsPtr);
+				}
+			}
+			catch (const std::exception& e) {
+				std::lock_guard<std::mutex> inOutLock(inOutMtx);
+				errorMessage.push_back(e.what());
+			}
+		});
+	}
 	return 0;
 }
 
