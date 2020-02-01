@@ -32,10 +32,35 @@ if (NOT EXISTS ${OPENPOSE_DIR_PATH})
 	message(FATAL_ERROR "error : unzip was failed")
 endif (NOT EXISTS ${OPENPOSE_DIR_PATH})
 
+# download sqlitecpp
+set(SQLITECPP_URL "https://github.com/SRombauts/SQLiteCpp/archive/be1a8eeace02ce98dfa3da688d1011c5bb895985.zip")
+get_filename_component(SQLITECPP_ZIP_PATH "${SQLITECPP_URL}" NAME)
+set(SQLITECPP_ZIP_PATH "${LIBRARIES_PATH}/SQLiteCpp-${SQLITECPP_ZIP_PATH}")
+string(REGEX REPLACE "\\.[^.]*$" "" SQLITECPP_DIR_PATH ${SQLITECPP_ZIP_PATH})
+if (NOT EXISTS ${SQLITECPP_DIR_PATH})
+	if (NOT EXISTS ${SQLITECPP_ZIP_PATH})
+		message(STATUS "download : ${SQLITECPP_URL}")
+		message(STATUS "it takes some time...")
+		file(TO_NATIVE_PATH ${SQLITECPP_ZIP_PATH} SQLITECPP_ZIP_PATH_BACKSLASH)
+		execute_process(COMMAND bitsadmin /transfer openposeDownloadJob /dynamic /download /priority FOREGROUND ${SQLITECPP_URL} ${SQLITECPP_ZIP_PATH_BACKSLASH} WORKING_DIRECTORY ${LIBRARIES_PATH})
+	endif (NOT EXISTS ${SQLITECPP_ZIP_PATH})
+	if (NOT EXISTS ${SQLITECPP_ZIP_PATH})
+		message(FATAL_ERROR "error : download was failed")
+	endif (NOT EXISTS ${SQLITECPP_ZIP_PATH})
+	message(STATUS "unzip : ${SQLITECPP_ZIP_PATH}")
+	execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ${SQLITECPP_ZIP_PATH} WORKING_DIRECTORY ${LIBRARIES_PATH})
+endif (NOT EXISTS ${SQLITECPP_DIR_PATH})
+if (NOT EXISTS ${SQLITECPP_DIR_PATH})
+	file(REMOVE ${SQLITECPP_ZIP_PATH})
+	message(FATAL_ERROR "error : unzip was failed")
+endif (NOT EXISTS ${SQLITECPP_DIR_PATH})
+
 # create project
 project(openpose_ext)
 
 # configuration
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
@@ -48,6 +73,11 @@ file(COPY ${DLL_FILES} DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 message(STATUS "copy : model files")
 file(COPY "${OPENPOSE_DIR_PATH}/openpose/models" DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
+# add SQLiteCPP
+set(SQLITECPP_RUN_CPPCHECK OFF CACHE BOOL "" FORCE)
+set(SQLITECPP_RUN_CPPLINT OFF CACHE BOOL "" FORCE)
+add_subdirectory(${SQLITECPP_DIR_PATH})
+
 # add source files
 message(STATUS "search : all .cpp files")
 file(GLOB_RECURSE ALL_CPP_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
@@ -58,5 +88,6 @@ target_include_directories(openpose_ext PRIVATE
 )
 file(GLOB OPENPOSE_LIB_FILES "${OPENPOSE_DIR_PATH}/openpose/lib/*.lib")
 target_link_libraries(openpose_ext ${OPENPOSE_LIB_FILES})
+target_link_libraries(openpose_ext SQLiteCpp)
 set_target_properties(openpose_ext PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:openpose_ext>")
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT openpose_ext)
