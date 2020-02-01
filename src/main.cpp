@@ -74,9 +74,9 @@ std::unique_ptr<std::vector<std::vector<Node>>> getPoseKeypoints(Database& db, s
 		for (int nodeIndex = 0; nodeIndex < 25; nodeIndex++)
 		{
 			nodes.push_back(Node{
-				query.getColumn(2 + nodeIndex * 3 + 0).getDouble(),
-				query.getColumn(2 + nodeIndex * 3 + 1).getDouble(),
-				query.getColumn(2 + nodeIndex * 3 + 2).getDouble()
+				(float)query.getColumn(2 + nodeIndex * 3 + 0).getDouble(),
+				(float)query.getColumn(2 + nodeIndex * 3 + 1).getDouble(),
+				(float)query.getColumn(2 + nodeIndex * 3 + 2).getDouble()
 			});
 		}
 		result->push_back(nodes);
@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
 	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
 	cv::VideoCapture cap(videoPath);
 	Database db = createDatabase(sqlPath);
-	bool isWriteMode = false;
+	bool isWriteMode = true;
 	if (isWriteMode)
 	{
 		if (createTable(db)) return 1;
@@ -139,7 +139,13 @@ int main(int argc, char* argv[])
 					try
 					{
 						auto keyPoints = getPoseKeypoints(db, result->frameNumber);
-						std::cout << result->frameNumber << std::endl;
+						for (auto i : *keyPoints)
+						{
+							for (auto j : i)
+							{
+								cv::circle(result->cvOutputData, cv::Point{ (int)j.x, (int)j.y }, 10, cv::Scalar{ 255, 0, 0 }, -1);
+							}
+						}
 					}
 					catch (const std::exception & e)
 					{
