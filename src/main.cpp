@@ -66,12 +66,12 @@ int main(int argc, char* argv[])
 					cv::imshow("result", result->cvOutputData);
 
 					// ‰æ–Ê“à‚É‰f‚Á‚Ä‚¢‚él”•ªƒ‹[ƒv‚·‚é
-					for (int peopleIndex = 0; peopleIndex < result->faceKeypoints.getSize(0); peopleIndex++)
+					for (int peopleIndex = 0; peopleIndex < result->poseKeypoints.getSize(0); peopleIndex++)
 					{
 						query.reset();
 						query.bind(1, (long long)result->frameNumber);
 						query.bind(2, peopleIndex);
-						for (int nodeIndex = 0; nodeIndex < result->faceKeypoints.getSize(1); nodeIndex++)
+						for (int nodeIndex = 0; nodeIndex < result->poseKeypoints.getSize(1); nodeIndex++)
 						{
 							query.bind(3 + nodeIndex * 3 + 0, result->poseKeypoints[{peopleIndex, nodeIndex, 0}]);
 							query.bind(3 + nodeIndex * 3 + 1, result->poseKeypoints[{peopleIndex, nodeIndex, 1}]);
