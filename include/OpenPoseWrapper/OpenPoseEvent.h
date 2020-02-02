@@ -33,19 +33,3 @@ public:
 			);
 	}
 };
-
-class ExampleOpenPoseEvent : public OpenPoseEvent
-{
-private:
-	std::string videoPath;
-	cv::VideoCapture cap;
-public:
-	ExampleOpenPoseEvent(const std::string& videoPath);
-	virtual ~ExampleOpenPoseEvent();
-	int init() override;
-	void exit() override;
-	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override;
-	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override;
-	void recieveErrors(const std::vector<std::string>& errors) override;
-	std::pair<op::PoseModel, op::Point<int>> selectOpenposeMode() override;
-};

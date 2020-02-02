@@ -156,12 +156,14 @@ int MinimumOpenPose::startup(OpenPoseEvent& openPoseEvent)
 		switch (getProcessState())
 		{
 		case MinimumOpenPose::ProcessState::WaitInput: // 入力待機
+			imageInfo.people.clear();
 			ret = this->openPoseEvent->sendImageInfo(imageInfo, [this](){ shutdown(); });
 			if (ret)
 			{
 				errorMessage.push_back("OpenPoseEvent::sendImageInfo returned 1.");
 				break;
 			}
+			if (imageInfo.inputImage.empty()) break;
 			if (imageInfo.needOpenposeProcess)
 			{
 				pushImage(imageInfo.inputImage, imageInfo.frameNumber); // OpenPose に画像を渡す
@@ -169,6 +171,12 @@ int MinimumOpenPose::startup(OpenPoseEvent& openPoseEvent)
 			else
 			{
 				imageInfo.outputImage = imageInfo.inputImage;
+				ret = this->openPoseEvent->recieveImageInfo(imageInfo, [this]() { shutdown(); });
+				if (ret)
+				{
+					errorMessage.push_back("OpenPoseEvent::recieveImageInfo returned 1.");
+					break;
+				}
 			}
 			break;
 		case MinimumOpenPose::ProcessState::Processing: // 処理中
@@ -181,15 +189,15 @@ int MinimumOpenPose::startup(OpenPoseEvent& openPoseEvent)
 				{
 					imageInfo.people.clear();
 					// 画面内に映っている人数分ループする
-					for (int peopleIndex = 0; peopleIndex < result->poseKeypoints.getSize(0); peopleIndex++)
+					for (int personIndex = 0; personIndex < result->poseKeypoints.getSize(0); personIndex++)
 					{
 						std::vector<ImageInfo::Node> nodes;
 						for (int nodeIndex = 0; nodeIndex < result->poseKeypoints.getSize(1); nodeIndex++)
 						{
 							nodes.push_back(ImageInfo::Node{
-								result->poseKeypoints[{peopleIndex, nodeIndex, 0}],
-								result->poseKeypoints[{peopleIndex, nodeIndex, 1}],
-								result->poseKeypoints[{peopleIndex, nodeIndex, 2}]
+								result->poseKeypoints[{personIndex, nodeIndex, 0}],
+								result->poseKeypoints[{personIndex, nodeIndex, 1}],
+								result->poseKeypoints[{personIndex, nodeIndex, 2}]
 							});
 						}
 						imageInfo.people.emplace_back(std::move(nodes));

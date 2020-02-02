@@ -1,4 +1,4 @@
-#include "OpenPoseWrapper/Examples/Database.h"
+#include "Utils/Database.h"
 
 #ifdef SQLITECPP_ENABLE_ASSERT_HANDLER
 namespace SQLite
