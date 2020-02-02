@@ -1,4 +1,4 @@
-#include "MinOpenPose.h"
+#include "OpenPoseWrapper/MinimumOpenPose.h"
 
 MinimumOpenPose::WUserInputProcessing::WUserInputProcessing(std::mutex& inOutMtx) : inOutMtx(inOutMtx) {}
 
