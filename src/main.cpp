@@ -84,95 +84,61 @@ std::unique_ptr<std::vector<std::vector<Node>>> getPoseKeypoints(Database& db, s
 	return result;
 }
 
+class CustomOpenPoseEvent : public OpenPoseEvent
+{
+private:
+	std::string path;
+	cv::VideoCapture cap;
+public:
+	CustomOpenPoseEvent(const std::string& path) :
+		path(path)
+	{
+
+	}
+	virtual ~CustomOpenPoseEvent() {}
+	int init() override
+	{
+		cap.open(path);
+		if (!cap.isOpened()) return 1;
+		return 0;
+	}
+	void exit() override
+	{
+		cap.release();
+	}
+	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override
+	{
+		if (!cap.isOpened()) return 1;
+		imageInfo.needOpenposeProcess = true;
+		imageInfo.frameNumber = (size_t)cap.get(CV_CAP_PROP_POS_FRAMES);
+		cap.read(imageInfo.inputImage);
+		return 0;
+	}
+	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override
+	{
+		cv::imshow("result", imageInfo.outputImage);
+		if (cv::waitKey(1) == 0x1b) exit();
+		return 0;
+	}
+	void recieveErrors(const std::vector<std::string>& errors) override
+	{
+		for (auto error : errors)
+			std::cout << error << std::endl;
+	}
+	std::pair<op::PoseModel, op::Point<int>> selectOpenposeMode() override
+	{
+		return std::pair<op::PoseModel, op::Point<int>>(
+			op::PoseModel::BODY_25, op::Point<int>(-1, 368)
+		);
+	}
+};
+
 int main(int argc, char* argv[])
 {
-	// Webカメラに接続開始
-	//cv::VideoCapture cap(0);
-	//if (!cap.isOpened()) return -1;
-	std::string videoPath = R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\研究室から貰ったデータ\openpose\video\58°.mp4)";
-	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
-	cv::VideoCapture cap(videoPath);
-	Database db = createDatabase(sqlPath);
-	SQLite::Transaction t(*db);
-	bool isWriteMode = false;
-	if (isWriteMode)
-	{
-		if (createTable(db)) return 1;
-	}
-
-	// OpenPoseの起動
 	MinimumOpenPose mop;
-	mop.startup(isWriteMode);
-	
-	// OpenPoseのイベントループ処理
-	while (true)
-	{
-		// OpenPose の処理状態の確認
-		switch (mop.getProcessState())
-		{
-		case MinimumOpenPose::ProcessState::WaitInput: // 入力待機
-		{
-			auto frame = std::make_unique<cv::Mat>();
-			cap.read(*frame);
-			mop.pushImage(std::move(frame)); // OpenPose に画像を渡す
-			if (cv::waitKey(1) == 0x1b) {
-				mop.shutdown();
-				goto EXIT;
-			}
-		}
-		break;
-		case MinimumOpenPose::ProcessState::Processing: // 処理中
-			break;
-		case MinimumOpenPose::ProcessState::Finish: // 処理の終了
-		{
-			auto results = mop.getResultsAndReset(); // 出力されたデータの取得
-			if (!static_cast<bool>(results)) break;
 
-			if (isWriteMode)
-			{
-				if (addRow(db, results)) return 1;
-			}
+	CustomOpenPoseEvent cope {R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\研究室から貰ったデータ\openpose\video\58°.mp4)"};
+	int ret = mop.startup(cope);
 
-			for (auto result : *results)
-			{
-				if (!isWriteMode)
-				{
-					try
-					{
-						auto keyPoints = getPoseKeypoints(db, result->frameNumber);
-						for (auto i : *keyPoints)
-						{
-							for (auto j : i)
-							{
-								if (j.confidence != 0.0f)
-									cv::circle(result->cvOutputData, cv::Point{ (int)j.x, (int)j.y }, 10, cv::Scalar{ 255, 0, 0 }, -1);
-							}
-						}
-					}
-					catch (const std::exception & e)
-					{
-						std::cout << e.what() << std::endl;
-						return 1;
-					}
-				}
-				cv::imshow("result", result->cvOutputData);
-			}
-		}
-		break;
-		case MinimumOpenPose::ProcessState::Shutdown: // 起動していない
-			break;
-		case MinimumOpenPose::ProcessState::Error: // エラー発生
-		{
-			auto errors = mop.getErrors();
-			for (auto error : errors) std::cout << error << std::endl;
-			mop.resetErrors();
-			return 1;
-		}
-		break;
-		}
-	}
-
-EXIT:
-	t.commit();
-	return 0;
+	return ret;
 }

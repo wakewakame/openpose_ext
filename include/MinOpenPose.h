@@ -7,6 +7,38 @@
 #include <stdint.h>
 #include <cassert>
 
+struct ImageInfo
+{
+	struct Node { float x, y, confidence; };
+
+	// send
+	size_t frameNumber;
+	cv::Mat inputImage;
+	bool needOpenposeProcess = true;
+
+	// recieve
+	cv::Mat outputImage;
+	std::vector<std::vector<Node>> people;
+};
+
+class OpenPoseEvent
+{
+public:
+	OpenPoseEvent() {}
+	virtual ~OpenPoseEvent() {}
+	virtual int init() { return 0; };
+	virtual void exit() {};
+	virtual int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) = 0;
+	virtual int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) = 0;
+	virtual void recieveErrors(const std::vector<std::string>& errors) {}
+	virtual std::pair<op::PoseModel, op::Point<int>> selectOpenposeMode()
+	{
+		return std::pair<op::PoseModel, op::Point<int>>(
+			op::PoseModel::BODY_25, op::Point<int>(-1, 368)
+			);
+	}
+};
+
 /**
  * OpenPose のラッパークラス\n
  * OpenPose を別スレッドで動かし、 OpenPose の操作を簡単にする
@@ -21,11 +53,9 @@ private:
 	{
 	private:
 		// OpenPose へ入力する画像を格納するキュー
-		std::queue<std::unique_ptr<cv::Mat>> images;
+		std::queue<std::pair<cv::Mat, size_t>> images;
 		// 各スレッドを同期させるための mutex
 		std::mutex& inOutMtx;
-		// 入力画像のカウンタ
-		uint64_t frameNumber = 0;
 		// エラーメッセージ配列
 		std::vector<std::string> errorMessage;
 
@@ -55,7 +85,7 @@ private:
 		 * @param image 追加する画像 (フォーマット : CV_8UC3)
 		 * @param maxQueueSize 追加できる画像数の上限
 		 */
-		int pushImage(std::unique_ptr<cv::Mat>&& image, size_t maxQueueSize);
+		int pushImage(cv::Mat& image, size_t frameNumber, size_t maxQueueSize);
 
 		/**
 		 * エラーを取得する関数\n
@@ -130,6 +160,22 @@ private:
 		void shutdown();
 	};
 
+	/**
+	 * OpenPose の処理のステータスを表す
+	 */
+	enum ProcessState : uint8_t
+	{
+		//! 入力キューに何も溜まっておらず、入力待ちの状態
+		WaitInput = 0,
+		//! 入力キューに溜まっている画像の処理中
+		Processing = 1,
+		//! 入力キューの画像全ての処理が完了し
+		//! getResultsAndReset() が呼び出されるのを待機している状態
+		Finish = 2,
+		//! スレッドが終了した状態
+		Shutdown = 3
+	};
+
 	// OpenPose のラッパークラス
 	std::unique_ptr<op::Wrapper> opWrapper;
 	// OpenPose を実行させるスレッド
@@ -144,40 +190,10 @@ private:
 	std::vector<std::string> errorMessage;
 	// OpenPose 側のスレッドと同期するための mutex
 	std::mutex inOutMtx;
-
-public:
-	/**
-	 * OpenPose の処理のステータスを表す
-	 */
-	enum ProcessState : uint8_t
-	{
-		//! 入力キューに何も溜まっておらず、入力待ちの状態
-		WaitInput = 0,
-		//! 入力キューに溜まっている画像の処理中
-		Processing = 1,
-		//! 入力キューの画像全ての処理が完了し
-		//! getResultsAndReset() が呼び出されるのを待機している状態
-		Finish = 2,
-		//! 正常にスレッドが終了した状態
-		Shutdown = 3,
-		//! 入力キューの画像の処理中に例外が発生し、スレッドが終了した状態
-		Error = 4
-	};
-
-	MinimumOpenPose();
-	virtual ~MinimumOpenPose();
-
-	/**
-	 * OpenPose を起動する
-	 * @param poseModel 検出する関節の数などのポーズモデルを指定
-	 * @param netInputSize ネットワークの解像度を指定(幅、高さともに16の倍数でなければならない)
-	 * @return 起動が成功すると0が返る。失敗すると1が返る。
-	 */
-	int startup(
-		bool enableOpenposeProcess = true,
-		op::PoseModel poseModel = op::PoseModel::BODY_25,
-		op::Point<int> netInputSize = op::Point<int>(-1, 368)
-	);
+	// OpenPose のイベントリスナー
+	OpenPoseEvent* openPoseEvent = nullptr;
+	// OpenPose のイベントリスナーに渡す変数
+	ImageInfo imageInfo;
 
 	/**
 	 * OpenPose を終了する\n
@@ -198,7 +214,7 @@ public:
 	 * @param maxQueueSize キューの上限
 	 * @return キューの追加に成功すると 0 が返り、失敗すると 1 が返る
 	 */
-	int pushImage(std::unique_ptr<cv::Mat>&& image, size_t maxQueueSize = 128);
+	int pushImage(cv::Mat& image, size_t frameNumber, size_t maxQueueSize = 128);
 
 	/**
 	 * OpenPose の処理のステータスを取得する
@@ -207,19 +223,15 @@ public:
 	ProcessState getProcessState();
 
 	/**
-	 * OpenPose 側のスレッドで発生した例外メッセージを取得する
-	 */
-	const std::vector<std::string>& getErrors();
-
-	/**
- * OpenPose 側のスレッドで発生した例外メッセージをすべて削除する
- */
-	void resetErrors();
-
-	/**
 	 * pushImage() で追加された画像の処理結果を取得し、キューをリセットする関数\n
 	 * getProcessState() が ProcessState::Finish を返すときのみ有効
 	 * @return 処理結果
 	 */
 	std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> getResultsAndReset();
+
+public:
+	MinimumOpenPose();
+	virtual ~MinimumOpenPose();
+
+	int startup(OpenPoseEvent& openPoseEvent);
 };
