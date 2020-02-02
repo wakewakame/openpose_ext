@@ -4,7 +4,7 @@
 
 int createTable(Database& db)
 {
-	db->exec("DROP TABLE IF EXISTS test");
+	db->exec("DROP TABLE IF EXISTS people");
 	std::string row_title = "frame INTEGER, people INTEGER";
 	for (int i = 0; i < 25; i++)
 	{
@@ -12,7 +12,7 @@ int createTable(Database& db)
 		row_title += ", joint" + std::to_string(i) + "y REAL";
 		row_title += ", joint" + std::to_string(i) + "confidence REAL";
 	}
-	try { db->exec("CREATE TABLE test (" + row_title + ")"); }
+	try { db->exec("CREATE TABLE people (" + row_title + ")"); }
 	catch (const std::exception & e) {
 		std::cout << "error : " << __FILE__ << " : L" << __LINE__ << "\n" << e.what() << std::endl;
 		return 1;
@@ -25,7 +25,7 @@ int addRow(Database& db, std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>
 	// SQL文の生成
 	std::string row = "?";
 	for (int colIndex = 0; colIndex < 76; colIndex++) row += ", ?";
-	row = "INSERT INTO test VALUES (" + row + ")";
+	row = "INSERT INTO people VALUES (" + row + ")";
 	// SQL文の値を確定する
 	try
 	{
@@ -66,7 +66,7 @@ struct Node
 std::unique_ptr<std::vector<std::vector<Node>>> getPoseKeypoints(Database& db, size_t frameNumber)
 {
 	auto result = std::make_unique<std::vector<std::vector<Node>>>();
-	SQLite::Statement query(*db, "SELECT * FROM test WHERE frame=?");
+	SQLite::Statement query(*db, "SELECT * FROM people WHERE frame=?");
 	query.bind(1, (long long)frameNumber);
 	while (query.executeStep())
 	{
@@ -89,11 +89,12 @@ int main(int argc, char* argv[])
 	// Webカメラに接続開始
 	//cv::VideoCapture cap(0);
 	//if (!cap.isOpened()) return -1;
-	std::string videoPath = R"(C:/Users/柴田研/Documents/VirtualUsers/17ad105/Videos/IMG_1533.mp4)";
+	std::string videoPath = R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\研究室から貰ったデータ\openpose\video\58°.mp4)";
 	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
 	cv::VideoCapture cap(videoPath);
 	Database db = createDatabase(sqlPath);
-	bool isWriteMode = true;
+	SQLite::Transaction t(*db);
+	bool isWriteMode = false;
 	if (isWriteMode)
 	{
 		if (createTable(db)) return 1;
@@ -116,7 +117,7 @@ int main(int argc, char* argv[])
 			mop.pushImage(std::move(frame)); // OpenPose に画像を渡す
 			if (cv::waitKey(1) == 0x1b) {
 				mop.shutdown();
-				return 0;
+				goto EXIT;
 			}
 		}
 		break;
@@ -143,7 +144,8 @@ int main(int argc, char* argv[])
 						{
 							for (auto j : i)
 							{
-								cv::circle(result->cvOutputData, cv::Point{ (int)j.x, (int)j.y }, 10, cv::Scalar{ 255, 0, 0 }, -1);
+								if (j.confidence != 0.0f)
+									cv::circle(result->cvOutputData, cv::Point{ (int)j.x, (int)j.y }, 10, cv::Scalar{ 255, 0, 0 }, -1);
 							}
 						}
 					}
@@ -164,11 +166,13 @@ int main(int argc, char* argv[])
 			auto errors = mop.getErrors();
 			for (auto error : errors) std::cout << error << std::endl;
 			mop.resetErrors();
-			return -1;
+			return 1;
 		}
 		break;
 		}
 	}
 
+EXIT:
+	t.commit();
 	return 0;
 }
