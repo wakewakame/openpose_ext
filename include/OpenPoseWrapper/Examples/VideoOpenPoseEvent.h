@@ -48,10 +48,4 @@ public:
 		for (auto error : errors)
 			std::cout << error << std::endl;
 	}
-	std::pair<op::PoseModel, op::Point<int>> selectOpenposeMode() override final
-	{
-		return std::pair<op::PoseModel, op::Point<int>>(
-			op::PoseModel::BODY_25, op::Point<int>(-1, 368)
-		);
-	}
 };

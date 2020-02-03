@@ -113,21 +113,25 @@ MinimumOpenPose::~MinimumOpenPose()
 	shutdown();
 }
 
-int MinimumOpenPose::startup(OpenPoseEvent& openPoseEvent)
+void MinimumOpenPose::addEventListener(std::unique_ptr<OpenPoseEvent>&& openPoseEvent)
 {
+	openPoseEvents.push_back(std::move(openPoseEvent));
+}
+
+int MinimumOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSize)
+{
+	if (openPoseEvents.size() == 0) return 0;
 	// 変数の初期化
 	jobCount = 0;
 	errorMessage.clear();
-	this->openPoseEvent = &openPoseEvent;
-	auto openPoseMode = this->openPoseEvent->selectOpenposeMode();
 	opWrapper = std::make_unique<op::Wrapper>();
 	// OpenPose の設定
 	op::WrapperStructPose wrapperStructPose;
 	// 使用する骨格モデルの選択
-	wrapperStructPose.poseModel = openPoseMode.first;
+	wrapperStructPose.poseModel = poseModel;
 	// ネットワークの解像度の設定 (16の倍数のみ指定可能, -1は縦横比に合わせて自動計算される)
 	// 値は大きいほど精度が高く、処理も重い
-	wrapperStructPose.netInputSize = openPoseMode.second;
+	wrapperStructPose.netInputSize = netInputSize;
 	// OpenPose に設定を適応
 	opWrapper->configure(wrapperStructPose);
 	// 画像入力 Worker の設定
@@ -147,21 +151,28 @@ int MinimumOpenPose::startup(OpenPoseEvent& openPoseEvent)
 		}
 	});
 	// イベントリスナーの初期化関数を実行
-	ret = this->openPoseEvent->init();
-	if (ret) errorMessage.push_back("OpenPoseEvent::init returned 1.");
+	for (size_t i = 0; i < openPoseEvents.size(); i++)
+	{
+		ret = openPoseEvents[i]->init();
+		if (ret) errorMessage.push_back("OpenPoseEvent::init returned 1.");
+	}
 	// イベントループの開始
 	while (true)
 	{
+		WHILE_CONTINUE:
 		// OpenPose の処理状態の確認
 		switch (getProcessState())
 		{
 		case MinimumOpenPose::ProcessState::WaitInput: // 入力待機
 			imageInfo.people.clear();
-			ret = this->openPoseEvent->sendImageInfo(imageInfo, [this](){ shutdown(); });
-			if (ret)
+			for (long long i = openPoseEvents.size() - 1; i >= 0; i--)
 			{
-				errorMessage.push_back("OpenPoseEvent::sendImageInfo returned 1.");
-				break;
+				ret = openPoseEvents[i]->sendImageInfo(imageInfo, [this]() { shutdown(); });
+				if (ret)
+				{
+					errorMessage.push_back("OpenPoseEvent::sendImageInfo returned 1.");
+					goto WHILE_CONTINUE;
+				}
 			}
 			if (imageInfo.inputImage.empty()) break;
 			if (imageInfo.needOpenposeProcess)
@@ -171,11 +182,15 @@ int MinimumOpenPose::startup(OpenPoseEvent& openPoseEvent)
 			else
 			{
 				imageInfo.outputImage = imageInfo.inputImage;
-				ret = this->openPoseEvent->recieveImageInfo(imageInfo, [this]() { shutdown(); });
-				if (ret)
+
+				for (size_t i = 0; i < openPoseEvents.size(); i++)
 				{
-					errorMessage.push_back("OpenPoseEvent::recieveImageInfo returned 1.");
-					break;
+					ret = openPoseEvents[i]->recieveImageInfo(imageInfo, [this]() { shutdown(); });
+					if (ret)
+					{
+						errorMessage.push_back("OpenPoseEvent::recieveImageInfo returned 1.");
+						goto WHILE_CONTINUE;
+					}
 				}
 			}
 			break;
@@ -200,15 +215,18 @@ int MinimumOpenPose::startup(OpenPoseEvent& openPoseEvent)
 								result->poseKeypoints[{personIndex, nodeIndex, 2}]
 							});
 						}
-						imageInfo.people.emplace_back(std::move(nodes));
+						imageInfo.people[(size_t)personIndex] = std::move(nodes);
 					}
 					// 画像のコピー
 					imageInfo.outputImage = result->cvOutputData;
-					ret = this->openPoseEvent->recieveImageInfo(imageInfo, [this]() { shutdown(); });
-					if (ret)
+					for (size_t i = 0; i < openPoseEvents.size(); i++)
 					{
-						errorMessage.push_back("OpenPoseEvent::recieveImageInfo returned 1.");
-						break;
+						ret = openPoseEvents[i]->recieveImageInfo(imageInfo, [this]() { shutdown(); });
+						if (ret)
+						{
+							errorMessage.push_back("OpenPoseEvent::recieveImageInfo returned 1.");
+							goto WHILE_CONTINUE;
+						}
 					}
 				}
 			}
@@ -224,7 +242,7 @@ int MinimumOpenPose::startup(OpenPoseEvent& openPoseEvent)
 void MinimumOpenPose::shutdown()
 {
 	if (!isStartup()) return;
-	if (this->openPoseEvent) this->openPoseEvent->exit();
+	for (size_t i = 0; i < openPoseEvents.size(); i++) openPoseEvents[i]->exit();
 	opInput->shutdown();
 	opOutput->shutdown();
 	opThread.join();
@@ -251,7 +269,7 @@ MinimumOpenPose::ProcessState MinimumOpenPose::getProcessState()
 	opOutput->getErrors(errorMessage, true);
 	if (!errorMessage.empty())
 	{
-		this->openPoseEvent->recieveErrors(errorMessage);
+		for (size_t i = 0; i < openPoseEvents.size(); i++) openPoseEvents[i]->recieveErrors(errorMessage);
 		shutdown();
 	}
 

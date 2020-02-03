@@ -161,7 +161,7 @@ private:
 	// OpenPose 側のスレッドと同期するための mutex
 	std::mutex inOutMtx;
 	// OpenPose のイベントリスナー
-	OpenPoseEvent* openPoseEvent = nullptr;
+	std::vector<std::unique_ptr<OpenPoseEvent>> openPoseEvents;
 	// OpenPose のイベントリスナーに渡す変数
 	ImageInfo imageInfo;
 
@@ -203,5 +203,6 @@ public:
 	MinimumOpenPose();
 	virtual ~MinimumOpenPose();
 
-	int startup(OpenPoseEvent& openPoseEvent);
+	void addEventListener(std::unique_ptr<OpenPoseEvent>&& openPoseEvent);
+	int startup(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
 };

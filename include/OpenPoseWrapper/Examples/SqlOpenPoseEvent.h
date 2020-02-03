@@ -13,9 +13,11 @@ private:
 	cv::VideoCapture cap;
 	Database database;
 	std::unique_ptr<SQLite::Transaction> upTransaction;
+	long long saveFreq = 0;
+	size_t saveCountDown = 1;
 public:
-	SqlOpenPoseEvent(const std::string& videoPath, bool writeMode) :
-		videoPath(videoPath), writeMode(writeMode)
+	SqlOpenPoseEvent(const std::string& videoPath, bool writeMode, long long saveFreq = 0) :
+		videoPath(videoPath), writeMode(writeMode), saveFreq(saveFreq)
 	{
 		sqlPath = std::regex_replace(this->videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
 	}
@@ -86,6 +88,7 @@ public:
 				query.bind(1, (long long)imageInfo.frameNumber);
 				while (query.executeStep())
 				{
+					size_t index = (size_t)query.getColumn(1).getInt64();
 					std::vector<ImageInfo::Node> nodes;
 					for (int nodeIndex = 0; nodeIndex < 25; nodeIndex++)
 					{
@@ -95,7 +98,7 @@ public:
 							(float)query.getColumn(2 + nodeIndex * 3 + 2).getDouble()
 							});
 					}
-					imageInfo.people.emplace_back(std::move(nodes));
+					imageInfo.people[index] = std::move(nodes);
 				}
 			}
 			catch (const std::exception& e)
@@ -112,9 +115,9 @@ public:
 		// プレビューの表示
 		if (!writeMode)
 		{
-			for (auto person : imageInfo.people)
+			for (auto person = imageInfo.people.begin(); person != imageInfo.people.end(); person++)
 			{
-				for (auto node : person)
+				for (auto node : person->second)
 				{
 					if (node.confidence != 0.0f)
 					{
@@ -140,18 +143,24 @@ public:
 			try
 			{
 				SQLite::Statement query(*database, row);
-				for (size_t personIndex = 0; personIndex < imageInfo.people.size(); personIndex++)
+				for (auto person = imageInfo.people.begin(); person != imageInfo.people.end(); person++)
 				{
 					query.reset();
 					query.bind(1, (long long)imageInfo.frameNumber);
-					query.bind(2, (long long)personIndex);
-					for (size_t nodeIndex = 0; nodeIndex < imageInfo.people[personIndex].size(); nodeIndex++)
+					query.bind(2, (long long)person->first);
+					for (size_t nodeIndex = 0; nodeIndex < person->second.size(); nodeIndex++)
 					{
-						query.bind(3 + nodeIndex * 3 + 0, imageInfo.people[personIndex][nodeIndex].x);
-						query.bind(3 + nodeIndex * 3 + 1, imageInfo.people[personIndex][nodeIndex].y);
-						query.bind(3 + nodeIndex * 3 + 2, imageInfo.people[personIndex][nodeIndex].confidence);
+						query.bind(3 + nodeIndex * 3 + 0, person->second[nodeIndex].x);
+						query.bind(3 + nodeIndex * 3 + 1, person->second[nodeIndex].y);
+						query.bind(3 + nodeIndex * 3 + 2, person->second[nodeIndex].confidence);
 					}
 					(void)query.exec();
+				}
+				if ((saveFreq > 0) && (--saveCountDown <= 0) && upTransaction)
+				{
+					saveCountDown = saveFreq;
+					upTransaction->commit();
+					upTransaction = std::make_unique<SQLite::Transaction>(*database);
 				}
 			}
 			catch (const std::exception& e) {
@@ -166,11 +175,5 @@ public:
 	{
 		for (auto error : errors)
 			std::cout << error << std::endl;
-	}
-	std::pair<op::PoseModel, op::Point<int>> selectOpenposeMode() override final
-	{
-		return std::pair<op::PoseModel, op::Point<int>>(
-			op::PoseModel::BODY_25, op::Point<int>(-1, 368)
-			);
 	}
 };
