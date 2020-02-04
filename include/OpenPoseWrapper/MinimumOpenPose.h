@@ -204,5 +204,14 @@ public:
 	virtual ~MinimumOpenPose();
 
 	void addEventListener(std::unique_ptr<OpenPoseEvent>&& openPoseEvent);
+
+
+	template <class _Ty, class... _Types>
+	inline void on(_Types && ... _Args)
+	{
+		addEventListener(std::make_unique<_Ty>(std::forward<_Types>(_Args)...));
+	}
+
+
 	int startup(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
 };

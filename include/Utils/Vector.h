@@ -326,11 +326,11 @@ struct vt
 			Vector4 v = cross(projModelView, *this);
 			return v / v.w;
 		}
-		Vector4 screenToWorld(Matrix4 proj, double w, double h)
+		Vector4 screenToWorld(Matrix4 proj, double wTmp, double hTmp)
 		{
 			Vector4 p = Vector4(0, 0, 0);
-			p.x = (x * 2.0 / w) - 1.0;
-			p.y = (y * 2.0 / h) - 1.0;
+			p.x = (x * 2.0 / wTmp) - 1.0;
+			p.y = (y * 2.0 / hTmp) - 1.0;
 			p.z = z;
 			p.x = p.x * p.z / proj.m00;
 			p.y = p.y * p.z / proj.m11;

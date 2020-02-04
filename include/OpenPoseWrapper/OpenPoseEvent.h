@@ -25,5 +25,5 @@ public:
 	virtual void exit() {};
 	virtual int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) = 0;
 	virtual int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) = 0;
-	virtual void recieveErrors(const std::vector<std::string>& errors) {}
+	virtual void recieveErrors(const std::vector<std::string>& errors) { (void)errors; }
 };

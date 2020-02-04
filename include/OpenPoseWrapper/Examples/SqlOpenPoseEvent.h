@@ -2,36 +2,22 @@
 
 #include <OpenPoseWrapper/OpenPoseEvent.h>
 #include <Utils/Database.h>
-#include <regex>
 
 class SqlOpenPoseEvent : public OpenPoseEvent
 {
 private:
 	bool writeMode;
-	std::string videoPath;
 	std::string sqlPath;
-	cv::VideoCapture cap;
 	Database database;
 	std::unique_ptr<SQLite::Transaction> upTransaction;
 	long long saveFreq = 0;
 	size_t saveCountDown = 1;
 public:
-	SqlOpenPoseEvent(const std::string& videoPath, bool writeMode, long long saveFreq = 0) :
-		videoPath(videoPath), writeMode(writeMode), saveFreq(saveFreq)
-	{
-		sqlPath = std::regex_replace(this->videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
-	}
+	SqlOpenPoseEvent(const std::string& sqlPath, bool writeMode, long long saveFreq = 0) :
+		sqlPath(sqlPath), writeMode(writeMode), saveFreq(saveFreq){}
 	virtual ~SqlOpenPoseEvent() {};
 	int init() override final
 	{
-		// 動画ファイルのオープン
-		cap.open(videoPath);
-		if (!cap.isOpened())
-		{
-			std::cout << "can not open \"" << videoPath << "\"" << std::endl;
-			return 1;
-		}
-
 		// sqlの生成
 		try
 		{
@@ -60,25 +46,10 @@ public:
 	}
 	void exit() override final
 	{
-		cap.release();
 		if (upTransaction && writeMode) upTransaction->commit();
 	}
 	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
 	{
-		if (!cap.isOpened())
-		{
-			std::cout << "can not open \"" << videoPath << "\"" << std::endl;
-			return 1;
-		}
-		imageInfo.needOpenposeProcess = true;
-		imageInfo.frameNumber = (size_t)cap.get(CV_CAP_PROP_POS_FRAMES);
-		cap.read(imageInfo.inputImage);
-		if (imageInfo.inputImage.empty())
-		{
-			exit();
-			return 0;
-		}
-
 		if (!writeMode)
 		{
 			try
@@ -112,27 +83,6 @@ public:
 	}
 	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
 	{
-		// プレビューの表示
-		if (!writeMode)
-		{
-			for (auto person = imageInfo.people.begin(); person != imageInfo.people.end(); person++)
-			{
-				for (auto node : person->second)
-				{
-					if (node.confidence != 0.0f)
-					{
-						cv::circle(
-							imageInfo.outputImage,
-							cv::Point{ (int)node.x, (int)node.y },
-							3, cv::Scalar{ 255, 0, 0 }, -1
-						);
-					}
-				}
-			}
-		}
-		cv::imshow("result", imageInfo.outputImage);
-		if (cv::waitKey(1) == 0x1b) exit();
-
 		if (writeMode)
 		{
 			// sql文の生成
@@ -150,9 +100,9 @@ public:
 					query.bind(2, (long long)person->first);
 					for (size_t nodeIndex = 0; nodeIndex < person->second.size(); nodeIndex++)
 					{
-						query.bind(3 + nodeIndex * 3 + 0, person->second[nodeIndex].x);
-						query.bind(3 + nodeIndex * 3 + 1, person->second[nodeIndex].y);
-						query.bind(3 + nodeIndex * 3 + 2, person->second[nodeIndex].confidence);
+						query.bind(3 + nodeIndex * 3 + 0, (double)person->second[nodeIndex].x);
+						query.bind(3 + nodeIndex * 3 + 1, (double)person->second[nodeIndex].y);
+						query.bind(3 + nodeIndex * 3 + 2, (double)person->second[nodeIndex].confidence);
 					}
 					(void)query.exec();
 				}

@@ -18,15 +18,15 @@ namespace SQLite
 template<UINT SrcCodePage, UINT DstCodePage>
 std::string convertStringCodePage(const std::string& src)
 {
-	int lenghtUnicode = MultiByteToWideChar(SrcCodePage, 0, src.c_str(), src.size(), NULL, 0);
+	int lenghtUnicode = MultiByteToWideChar(SrcCodePage, 0, src.c_str(), (int)src.size(), NULL, 0);
 	if (lenghtUnicode == 0) throw(std::out_of_range("ERROR_NO_UNICODE_TRANSLATION"));
 	std::wstring bufUnicode(lenghtUnicode, L'\0');
-	int lenghtUnicodeActual = MultiByteToWideChar(SrcCodePage, 0, src.c_str(), src.size(), &bufUnicode[0], bufUnicode.size());
+	int lenghtUnicodeActual = MultiByteToWideChar(SrcCodePage, 0, src.c_str(), (int)src.size(), &bufUnicode[0], (int)bufUnicode.size());
 	assert(lenghtUnicode == lenghtUnicodeActual);
-	int lengthDst = WideCharToMultiByte(DstCodePage, 0, &bufUnicode[0], bufUnicode.size(), NULL, 0, NULL, NULL);
+	int lengthDst = WideCharToMultiByte(DstCodePage, 0, &bufUnicode[0], (int)bufUnicode.size(), NULL, 0, NULL, NULL);
 	if (lengthDst == 0) throw(std::out_of_range("ERROR_NO_UNICODE_TRANSLATION"));
-	std::string dst(lengthDst, L'\0');
-	int lengthDstActual = WideCharToMultiByte(DstCodePage, 0, &bufUnicode[0], bufUnicode.size(), &dst[0], dst.size(), NULL, NULL);
+	std::string dst(lengthDst, '\0');
+	int lengthDstActual = WideCharToMultiByte(DstCodePage, 0, &bufUnicode[0], (int)bufUnicode.size(), &dst[0], (int)dst.size(), NULL, NULL);
 	assert(lengthDst == lengthDstActual);
 	return dst;
 }

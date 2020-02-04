@@ -249,8 +249,8 @@ namespace op
 			float lineVecLength = std::sqrt(lineVecX * lineVecX + lineVecY * lineVecY);
 			float lineNormalX = -lineVecY / lineVecLength;
 			float lineNormalY = lineVecX / lineVecLength;
-			float moveX = lineNormalX * lineWeigth * 0.5;
-			float moveY = lineNormalY * lineWeigth * 0.5;
+			float moveX = lineNormalX * lineWeigth * 0.5f;
+			float moveY = lineNormalY * lineWeigth * 0.5f;
 			this->lines.clear();
 			this->lines.push_back(Line{ lineStartX - moveX, lineStartY - moveY, lineEndX - moveX, lineEndY - moveY });
 			this->lines.push_back(Line{ lineStartX + moveX, lineStartY + moveY, lineEndX + moveX, lineEndY + moveY });
@@ -265,7 +265,7 @@ namespace op
 		void drawLine(cv::Mat& mat)
 		{
 			for (auto line : lines)
-				cv::line(mat, { (int)line.lineStartX, (int)line.lineStartY }, { (int)line.lineEndX, (int)line.lineEndY }, cv::Scalar{ 255.0, 255.0, 255.0 }, 2.0);
+				cv::line(mat, { (int)line.lineStartX, (int)line.lineStartY }, { (int)line.lineEndX, (int)line.lineEndY }, cv::Scalar{ 255.0, 255.0, 255.0 }, 2);
 		}
 	};
 }
