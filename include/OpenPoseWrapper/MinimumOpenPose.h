@@ -161,7 +161,7 @@ private:
 	// OpenPose 側のスレッドと同期するための mutex
 	std::mutex inOutMtx;
 	// OpenPose のイベントリスナー
-	std::vector<std::unique_ptr<OpenPoseEvent>> openPoseEvents;
+	std::vector<std::shared_ptr<OpenPoseEvent>> openPoseEvents;
 	// OpenPose のイベントリスナーに渡す変数
 	ImageInfo imageInfo;
 
@@ -203,15 +203,13 @@ public:
 	MinimumOpenPose();
 	virtual ~MinimumOpenPose();
 
-	void addEventListener(std::unique_ptr<OpenPoseEvent>&& openPoseEvent);
-
+	std::shared_ptr<OpenPoseEvent> addEventListener(const std::shared_ptr<OpenPoseEvent>& openPoseEvent);
 
 	template <class _Ty, class... _Types>
-	inline void on(_Types && ... _Args)
+	inline std::shared_ptr<_Ty> on(_Types && ... _Args)
 	{
-		addEventListener(std::make_unique<_Ty>(std::forward<_Types>(_Args)...));
+		return addEventListener(std::make_shared<_Ty>(std::forward<_Types>(_Args)...));
 	}
-
 
 	int startup(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
 };
