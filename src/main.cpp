@@ -18,7 +18,12 @@ public:
 		start = clock::now();
 		return 0;
 	}
-	void exit() override final {}
+	void exit() override final
+	{
+		end = clock::now();
+		auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		std::cout << "time : " << time << std::endl;
+	}
 	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final { return 0; }
 	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
 	{
@@ -43,10 +48,6 @@ public:
 				std::to_string(person->first), p, { 255, 255, 255 }, true, 800
 			);
 		}
-
-		end = clock::now();
-		float fps = 1000.0f / (float)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-		start = end;
 
 		return 0;
 	}

@@ -200,19 +200,6 @@ namespace op
 			// ‰‚ß‚Ä“oê‚·‚él‚ÍfirstTree‚É‚à’Ç‰Á
 			if (lostFlag) firstTrees[addIndex] = currentTrees[addIndex];
 		}
-
-		imageInfo.people.clear();
-		for (auto person = currentTrees.begin(); person != currentTrees.end(); person++)
-		{
-			std::vector<ImageInfo::Node> nodes;
-			for (auto node : person->second.nodes)
-			{
-				nodes.push_back(ImageInfo::Node{
-					node.x, node.y, node.confidence
-				});
-			}
-			imageInfo.people[person->first] = std::move(nodes);
-		}
 	}
 
 	std::vector<uint64_t> PeopleList::getCurrentIndices()
