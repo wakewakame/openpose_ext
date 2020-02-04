@@ -16,6 +16,7 @@ public:
 	{
 		for (auto person = imageInfo.people.begin(); person != imageInfo.people.end(); person++)
 		{
+			op::Point<int> p; size_t enableNodeSum = 0;
 			for (auto node : person->second)
 			{
 				if (node.confidence != 0.0f)
@@ -25,8 +26,14 @@ public:
 						cv::Point{ (int)node.x, (int)node.y },
 						3, cv::Scalar{ 255, 0, 0 }, -1
 					);
+					p.x += (int)node.x; p.y += (int)node.y; enableNodeSum++;
 				}
 			}
+			p.x /= enableNodeSum; p.y /= enableNodeSum;
+			op::putTextOnCvMat(
+				imageInfo.outputImage,
+				std::to_string(person->first), p, {255, 255, 255}, true, 800
+			);
 		}
 
 		cv::imshow(windowTitle, imageInfo.outputImage);
