@@ -203,12 +203,13 @@ public:
 	MinimumOpenPose();
 	virtual ~MinimumOpenPose();
 
-	std::shared_ptr<OpenPoseEvent> addEventListener(const std::shared_ptr<OpenPoseEvent>& openPoseEvent);
-
-	template <class _Ty, class... _Types>
-	inline std::shared_ptr<_Ty> on(_Types && ... _Args)
+	template <class Ty, class... Types>
+	inline std::shared_ptr<Ty> addEventListener(Types && ... Args)
 	{
-		return addEventListener(std::make_shared<_Ty>(std::forward<_Types>(_Args)...));
+		std::shared_ptr<Ty> ty = std::make_shared<Ty>(std::forward<Types>(Args)...);
+		std::shared_ptr<OpenPoseEvent> openPoseEvent = std::dynamic_pointer_cast<OpenPoseEvent>(ty);
+		openPoseEvents.push_back(openPoseEvent);
+		return ty;
 	}
 
 	int startup(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));

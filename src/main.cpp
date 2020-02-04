@@ -64,11 +64,11 @@ int main(int argc, char* argv[])
 		R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\研究室から貰ったデータ\openpose\video\58°.mp4)";
 	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
 
-	auto tracking = mop.on<TrackingOpenPoseEvent>();
-	auto sql = mop.on<SqlOpenPoseEvent>(sqlPath, false, 60);
-	(void)mop.on<VideoOpenPoseEvent>(videoPath);
-	(void)mop.on<PlotInfoOpenPoseEvent>();
-	(void)mop.on<PreviewOpenPoseEvent>();
+	auto tracking = mop.addEventListener<TrackingOpenPoseEvent>();
+	auto sql = mop.addEventListener<SqlOpenPoseEvent>(sqlPath, false, 60);
+	(void)mop.addEventListener<VideoOpenPoseEvent>(videoPath);
+	(void)mop.addEventListener<PlotInfoOpenPoseEvent>();
+	(void)mop.addEventListener<PreviewOpenPoseEvent>();
 
 	int ret = mop.startup();
 

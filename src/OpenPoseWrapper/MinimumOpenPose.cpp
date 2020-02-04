@@ -113,12 +113,6 @@ MinimumOpenPose::~MinimumOpenPose()
 	shutdown();
 }
 
-std::shared_ptr<OpenPoseEvent> MinimumOpenPose::addEventListener(const std::shared_ptr<OpenPoseEvent>& openPoseEvent)
-{
-	openPoseEvents.push_back(openPoseEvent);
-	return openPoseEvent;
-}
-
 int MinimumOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSize)
 {
 	if (openPoseEvents.size() == 0) return 0;

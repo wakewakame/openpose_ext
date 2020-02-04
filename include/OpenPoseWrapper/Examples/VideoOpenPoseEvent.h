@@ -37,12 +37,7 @@ public:
 		if (imageInfo.inputImage.empty()) exit();
 		return 0;
 	}
-	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
-	{
-		cv::imshow("result", imageInfo.outputImage);
-		if (cv::waitKey(1) == 0x1b) exit();
-		return 0;
-	}
+	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final { return 0; }
 	void recieveErrors(const std::vector<std::string>& errors) override final
 	{
 		for (auto error : errors)
