@@ -34,6 +34,7 @@ public:
 					row_title += ", joint" + std::to_string(i) + "confidence REAL";
 				}
 				database->exec("CREATE TABLE people (" + row_title + ")");
+				database->exec("CREATE INDEX idx_frame_on_people ON people(frame)");
 			}
 		}
 		catch (const std::exception& e)
