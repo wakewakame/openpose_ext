@@ -21,11 +21,19 @@ public:
 		// sqlの生成
 		try
 		{
-			database = createDatabase(sqlPath);
+			database = createDatabase(
+				sqlPath,
+				writeMode ? (SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) : (SQLite::OPEN_READONLY)
+			);
 			upTransaction = std::make_unique<SQLite::Transaction>(*database);
 			if (writeMode)
 			{
-				database->exec("DROP TABLE IF EXISTS people");
+				if (database->tableExists("people"))
+				{
+					std::cout << "error : people テーブルは既に存在しています。" << std::endl;
+					std::cout << "もしデータを上書きしたい場合は " << sqlPath << " を削除し、再度実行してください。" << std::endl;
+					return 1;
+				}
 				std::string row_title = "frame INTEGER, people INTEGER";
 				for (int i = 0; i < 25; i++)
 				{

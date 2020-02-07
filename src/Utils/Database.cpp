@@ -1,4 +1,4 @@
-#include "Utils/Database.h"
+#include <Utils/Database.h>
 
 #ifdef SQLITECPP_ENABLE_ASSERT_HANDLER
 namespace SQLite
@@ -37,7 +37,7 @@ std::string toUTF8(const std::string& src) { return src; }
 std::string fromUTF8(const std::string& src) { return src; }
 #endif
 
-std::shared_ptr<SQLite::Database> createDatabase(const std::string& path)
+std::shared_ptr<SQLite::Database> createDatabase(const std::string& path, const int aFlags)
 {
-	return std::make_shared<SQLite::Database>(toUTF8(path), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
+	return std::make_shared<SQLite::Database>(toUTF8(path), aFlags);
 }
