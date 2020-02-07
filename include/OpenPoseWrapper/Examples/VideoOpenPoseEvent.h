@@ -32,7 +32,9 @@ public:
 			return 1;
 		}
 		imageInfo.needOpenposeProcess = true;
-		imageInfo.frameNumber = (size_t)cap.get(CV_CAP_PROP_POS_FRAMES);
+		imageInfo.frameNumber = (size_t)cap.get(cv::CAP_PROP_POS_FRAMES);
+		imageInfo.frameSum = (size_t)cap.get(cv::CAP_PROP_FRAME_COUNT);
+		imageInfo.frameTimeStamp = (size_t)cap.get(cv::CAP_PROP_POS_MSEC);
 		cap.read(imageInfo.inputImage);
 		if (imageInfo.inputImage.empty()) exit();
 		return 0;
