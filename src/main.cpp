@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
 
 	// 入力する映像ファイルのフルパス
 	std::string videoPath =
-		R"(C:\Users\柴田研\Documents\VirtualUsers\17ad105\Videos\IMG_1533.mp4)";
+		R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\video\IMG_1533.mp4)";
 	// 入出力するsqlファイルのフルパス
 	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
 
@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
 	// トラッキング処理の追加
 	auto tracking = mop.addEventListener<TrackingOpenPoseEvent>();
 	// sql入出力機能の追加
-	auto sql = mop.addEventListener<SqlOpenPoseEvent>(sqlPath, false, 60);
+	auto sql = mop.addEventListener<SqlOpenPoseEvent>(sqlPath, 60);
 	// 動画読み込み処理の追加
 	(void)mop.addEventListener<VideoOpenPoseEvent>(videoPath);
 	// 出力画像に文字などを描画する処理の追加

@@ -6,34 +6,29 @@
 class SqlOpenPoseEvent : public OpenPoseEvent
 {
 private:
-	bool writeMode;
 	std::string sqlPath;
 	Database database;
 	std::unique_ptr<SQLite::Transaction> upTransaction;
 	long long saveFreq = 0;
 	size_t saveCountDown = 1;
 public:
-	SqlOpenPoseEvent(const std::string& sqlPath, bool writeMode, long long saveFreq = 0) :
-		sqlPath(sqlPath), writeMode(writeMode), saveFreq(saveFreq){}
+	SqlOpenPoseEvent(const std::string& sqlPath, long long saveFreq = 0) :
+		sqlPath(sqlPath), saveFreq(saveFreq){}
 	virtual ~SqlOpenPoseEvent() {};
 	int init() override final
 	{
 		// sqlの生成
 		try
 		{
+			// ファイルのオープン
 			database = createDatabase(
 				sqlPath,
-				writeMode ? (SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) : (SQLite::OPEN_READONLY)
+				SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE
 			);
-			upTransaction = std::make_unique<SQLite::Transaction>(*database);
-			if (writeMode)
+
+			// peopleテーブルが存在しない場合はテーブルを生成
+			if (!database->tableExists("people"))
 			{
-				if (database->tableExists("people"))
-				{
-					std::cout << "error : people テーブルは既に存在しています。" << std::endl;
-					std::cout << "もしデータを上書きしたい場合は " << sqlPath << " を削除し、再度実行してください。" << std::endl;
-					return 1;
-				}
 				std::string row_title = "frame INTEGER, people INTEGER";
 				for (int i = 0; i < 25; i++)
 				{
@@ -44,6 +39,17 @@ public:
 				database->exec("CREATE TABLE people (" + row_title + ")");
 				database->exec("CREATE INDEX idx_frame_on_people ON people(frame)");
 			}
+
+			// timestampテーブルが存在しない場合はテーブルを生成
+			if (!database->tableExists("timestamp"))
+			{
+				std::string row_title = "frame INTEGER PRIMARY KEY, timestamp INTEGER";
+				database->exec("CREATE TABLE timestamp (" + row_title + ")");
+				database->exec("CREATE INDEX idx_frame_on_timestamp ON timestamp(frame)");
+			}
+
+			// トランザクションの開始
+			upTransaction = std::make_unique<SQLite::Transaction>(*database);
 		}
 		catch (const std::exception& e)
 		{
@@ -55,66 +61,81 @@ public:
 	}
 	void exit() override final
 	{
-		if (upTransaction && writeMode) upTransaction->commit();
+		if (upTransaction) upTransaction->commit();
 	}
 	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
 	{
-		if (!writeMode)
+		try
 		{
-			try
+			// SQLにタイムスタンプが存在するか確認
+			SQLite::Statement timestampQuery(*database, "SELECT count(*) FROM timestamp WHERE frame=?");
+			timestampQuery.bind(1, (long long)imageInfo.frameNumber);
+			(void)timestampQuery.executeStep();
+			// SQLにタイムスタンプが存在した場合はその時刻の骨格データを使用する
+			if (1 == timestampQuery.getColumn(0).getInt())
 			{
 				imageInfo.needOpenposeProcess = false;
-				SQLite::Statement query(*database, "SELECT * FROM people WHERE frame=?");
-				query.bind(1, (long long)imageInfo.frameNumber);
-				while (query.executeStep())
+				SQLite::Statement peopleQuery(*database, "SELECT * FROM people WHERE frame=?");
+				peopleQuery.bind(1, (long long)imageInfo.frameNumber);
+				while (peopleQuery.executeStep())
 				{
-					size_t index = (size_t)query.getColumn(1).getInt64();
+					size_t index = (size_t)peopleQuery.getColumn(1).getInt64();
 					std::vector<ImageInfo::Node> nodes;
 					for (int nodeIndex = 0; nodeIndex < 25; nodeIndex++)
 					{
 						nodes.push_back(ImageInfo::Node{
-							(float)query.getColumn(2 + nodeIndex * 3 + 0).getDouble(),
-							(float)query.getColumn(2 + nodeIndex * 3 + 1).getDouble(),
-							(float)query.getColumn(2 + nodeIndex * 3 + 2).getDouble()
-							});
+							(float)peopleQuery.getColumn(2 + nodeIndex * 3 + 0).getDouble(),
+							(float)peopleQuery.getColumn(2 + nodeIndex * 3 + 1).getDouble(),
+							(float)peopleQuery.getColumn(2 + nodeIndex * 3 + 2).getDouble()
+						});
 					}
 					imageInfo.people[index] = std::move(nodes);
 				}
 			}
-			catch (const std::exception& e)
-			{
-				std::cout << "error : " << __FILE__ << " : L" << __LINE__ << "\n" << e.what() << std::endl;
-				return 1;
-			}
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << "error : " << __FILE__ << " : L" << __LINE__ << "\n" << e.what() << std::endl;
+			return 1;
 		}
 
 		return 0;
 	}
 	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
 	{
-		if (writeMode)
+		// OpenPoseが骨格検出を行ったか確認
+		if (imageInfo.needOpenposeProcess)
 		{
-			// sql文の生成
-			std::string row = "?";
-			for (int colIndex = 0; colIndex < 76; colIndex++) row += ", ?";
-			row = "INSERT INTO people VALUES (" + row + ")";
-			// sql文の値を確定する
 			try
 			{
-				SQLite::Statement query(*database, row);
+				// peopleテーブルの更新
+				std::string row = "?";
+				for (int colIndex = 0; colIndex < 76; colIndex++) row += ", ?";
+				row = "INSERT INTO people VALUES (" + row + ")";
+				SQLite::Statement peopleQuery(*database, row);
 				for (auto person = imageInfo.people.begin(); person != imageInfo.people.end(); person++)
 				{
-					query.reset();
-					query.bind(1, (long long)imageInfo.frameNumber);
-					query.bind(2, (long long)person->first);
+					peopleQuery.reset();
+					peopleQuery.bind(1, (long long)imageInfo.frameNumber);
+					peopleQuery.bind(2, (long long)person->first);
 					for (size_t nodeIndex = 0; nodeIndex < person->second.size(); nodeIndex++)
 					{
-						query.bind(3 + nodeIndex * 3 + 0, (double)person->second[nodeIndex].x);
-						query.bind(3 + nodeIndex * 3 + 1, (double)person->second[nodeIndex].y);
-						query.bind(3 + nodeIndex * 3 + 2, (double)person->second[nodeIndex].confidence);
+						peopleQuery.bind(3 + nodeIndex * 3 + 0, (double)person->second[nodeIndex].x);
+						peopleQuery.bind(3 + nodeIndex * 3 + 1, (double)person->second[nodeIndex].y);
+						peopleQuery.bind(3 + nodeIndex * 3 + 2, (double)person->second[nodeIndex].confidence);
 					}
-					(void)query.exec();
+					(void)peopleQuery.exec();
 				}
+
+				// timestampテーブルの更新
+				row = "INSERT INTO timestamp VALUES (?, ?)";
+				SQLite::Statement timestampQuery(*database, row);
+				timestampQuery.reset();
+				timestampQuery.bind(1, (long long)imageInfo.frameNumber);
+				timestampQuery.bind(2, (long long)imageInfo.frameTimeStamp);
+				(void)timestampQuery.exec();
+
+				// sqlのセーブ
 				if ((saveFreq > 0) && (--saveCountDown <= 0) && upTransaction)
 				{
 					saveCountDown = saveFreq;
