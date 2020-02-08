@@ -1,5 +1,4 @@
 #include <OpenPoseWrapper/MinimumOpenPose.h>
-#include <OpenPoseWrapper/Examples/TrackingOpenPoseEvent.h>
 #include <OpenPoseWrapper/Examples/SqlOpenPoseEvent.h>
 #include <OpenPoseWrapper/Examples/VideoOpenPoseEvent.h>
 #include <OpenPoseWrapper/Examples/PlotInfoOpenPoseEvent.h>
@@ -10,7 +9,12 @@
 class CustomOpenPoseEvent : public OpenPoseEvent
 {
 private:
-	std::shared_ptr<TrackingOpenPoseEvent> tracking;
+	op::PeopleList people{
+		5,         // NUMBER_NODES_TO_TRUST
+		0.5f,   // CONFIDENCE_THRESHOLD
+		10,      // NUMBER_FRAMES_TO_LOST
+		50.0f  // DISTANCE_THRESHOLD
+	};
 	std::shared_ptr<VideoOpenPoseEvent> video;
 	std::shared_ptr<SqlOpenPoseEvent> sql;
 	std::shared_ptr<PreviewOpenPoseEvent> preview;
@@ -21,10 +25,10 @@ private:
 
 	int checkError()
 	{
-		if ((!tracking) || (!video) || (!sql) || (!preview))
+		if ((!video) || (!sql))
 		{
 			std::cout
-				<< "TrackingOpenPoseEvent, VideoOpenPoseEvent, SqlOpenPoseEvent, PreviewOpenPoseEventのいずれかが未指定です。\n"
+				<< "VideoOpenPoseEvent, SqlOpenPoseEventのいずれかが未指定です。\n"
 				<< "setParams関数で正しい値を指定してください。"
 				<< std::endl;
 			return 1;
@@ -61,11 +65,14 @@ public:
 	{
 		if (checkError()) return 1;
 
+		// トラッキング
+		people.addFrame(imageInfo);
+
 		// 人数カウント
 		peopleLineCounter.setLine(579, 578, 1429, 577, 100.0);  // カウントの基準線の座標設定
-		peopleLineCounter.updateCount(tracking->people);  // カウントの更新
+		peopleLineCounter.updateCount(people);  // カウントの更新
 		peopleLineCounter.drawJudgeLine(imageInfo.outputImage);  // 基準線の描画
-		peopleLineCounter.drawPeopleLine(imageInfo.outputImage, tracking->people, true);  // 人々の始点と終点の描画
+		peopleLineCounter.drawPeopleLine(imageInfo.outputImage, people, true);  // 人々の始点と終点の描画
 
 		// カウントを表示
 		gui::text(imageInfo.outputImage, std::string("up : ") + std::to_string(peopleLineCounter.getUpCount()), { 20, 200 });
@@ -87,9 +94,9 @@ public:
 		{
 			SQLite::Statement pwtQuery(*sql->database, u8"INSERT INTO people_with_tracking VALUES (?, ?, ?, ?)");
 			SQLite::Statement pwntQuery(*sql->database, u8"INSERT INTO people_with_normalized_tracking VALUES (?, ?, ?, ?)");
-			for (auto&& index : tracking->people.getCurrentIndices())
+			for (auto&& index : people.getCurrentIndices())
 			{
-				auto tree = tracking->people.getCurrentTree(index);
+				auto tree = people.getCurrentTree(index);
 				if (tree.frameNumber != imageInfo.frameNumber) continue;
 				auto position = tree.average();
 
@@ -118,18 +125,18 @@ public:
 		return 0;
 	}
 	void setParams(
-		const std::shared_ptr<TrackingOpenPoseEvent> trackingTmp,
 		const std::shared_ptr<VideoOpenPoseEvent> videoTmp,
 		const std::shared_ptr<SqlOpenPoseEvent> sqlTmp,
-		const std::shared_ptr<PreviewOpenPoseEvent> previewTmp
+		const std::shared_ptr<PreviewOpenPoseEvent> previewTmp = nullptr
 	)
 	{
-		tracking = trackingTmp;
 		video = videoTmp;
 		sql = sqlTmp;
 		preview = previewTmp;
 
 		if (checkError()) return;
+
+		if (!preview) return;
 
 		// マウスイベント処理
 		preview->addMouseEventListener([&](int event, int x, int y) {
@@ -201,10 +208,8 @@ int main(int argc, char* argv[])
 	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
 
 
-	// トラッキング処理の追加
-	auto tracking = mop.addEventListener<TrackingOpenPoseEvent>();
 	// sql入出力機能の追加
-	auto sql = mop.addEventListener<SqlOpenPoseEvent>(sqlPath, 60);
+	auto sql = mop.addEventListener<SqlOpenPoseEvent>(sqlPath, 300);
 	// 動画読み込み処理の追加
 	auto video = mop.addEventListener<VideoOpenPoseEvent>(videoPath);
 	// 出力画像に文字などを描画する処理の追加
@@ -215,11 +220,14 @@ int main(int argc, char* argv[])
 	auto preview = mop.addEventListener<PreviewOpenPoseEvent>("result");
 
 
-	custom->setParams(tracking, video, sql, preview);
+	custom->setParams(video, sql, preview);
 
 
 	// openposeの起動
+	auto start = std::chrono::high_resolution_clock::now();
 	int ret = mop.startup();
+	double time = (1.0 / 1000.0) * (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
+	std::cout << "time score : " << time << " sec." << std::endl;
 
 	return ret;
 }
