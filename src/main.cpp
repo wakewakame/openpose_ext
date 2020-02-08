@@ -14,52 +14,61 @@ private:
 	std::shared_ptr<VideoOpenPoseEvent> video;
 	std::shared_ptr<PreviewOpenPoseEvent> preview;
 	op::PeopleLineCounter peopleLineCounter;
+	vt::ScreenToGround screenToGround;
+	cv::Point mouse;
+	int previewMode;
 public:
-	CustomOpenPoseEvent() {}
+	CustomOpenPoseEvent() : previewMode(0) {}
 	virtual ~CustomOpenPoseEvent() {}
 	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final { return 0; }
 	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
 	{
+		if ((!tracking) || (!video))
+		{
+			std::cout
+				<< "TrackingOpenPoseEventもしくはVideoOpenPoseEventが未指定です。\n"
+				<< "setParams関数で正しい値を指定してください。"
+				<< std::endl;
+			return 1;
+		}
+
 		op::PeopleList& people = tracking->people;
 
 		// 人数カウント
-		peopleLineCounter.setLine(579, 578, 1429, 577, 100.0);
-		peopleLineCounter.update(people);
-		peopleLineCounter.drawLine(imageInfo.outputImage);
+		peopleLineCounter.setLine(579, 578, 1429, 577, 100.0);  // カウントの基準線の座標設定
+		peopleLineCounter.updateCount(people);  // カウントの更新
+		peopleLineCounter.drawJudgeLine(imageInfo.outputImage);  // 基準線の描画
+		peopleLineCounter.drawPeopleLine(imageInfo.outputImage, people, true);  // 人々の始点と終点の描画
 
 		// カウントを表示
 		gui::text(imageInfo.outputImage, std::string("up : ") + std::to_string(peopleLineCounter.getUpCount()), { 20, 200 });
 		gui::text(imageInfo.outputImage, std::string("down : ") + std::to_string(peopleLineCounter.getDownCount()), { 20, 230 });
 
-		// トラッキングの始点と終点を結ぶ直線を描画
-		for (size_t index : people.getCurrentIndices())
-		{
-			auto firstTree = people.getFirstTree(index);
-			auto currentTree = people.getCurrentTree(index);
-			if ((!firstTree.isValid()) || (!currentTree.isValid())) continue;
+		// 射影変換
+		screenToGround.setParams(
+			imageInfo.outputImage.cols, imageInfo.outputImage.rows, 33.3, 6.3,
+			492, 436,
+			863, 946,
+			1335, 644,
+			905, 242
+		);
+		screenToGround.drawAreaLine(imageInfo.outputImage);  // 射影変換に使用する4点の範囲を描画
 
-			// 直線の描画
-			cv::line(imageInfo.outputImage, { (int)firstTree.average().x, (int)firstTree.average().y }, { (int)currentTree.average().x, (int)currentTree.average().y }, cv::Scalar{
-				(double)((int)((std::sin((double)index * 463763.0) + 1.0) * 100000.0) % 120 + 80),
-				(double)((int)((std::sin((double)index * 1279.0) + 1.0) * 100000.0) % 120 + 80),
-				(double)((int)((std::sin((double)index * 92763.0) + 1.0) * 100000.0) % 120 + 80)
-			}, 2.0);
-
-			// idの描画
-			gui::text(imageInfo.outputImage, std::to_string(index), { (int)currentTree.average().x, (int)currentTree.average().y }, gui::CENTER_CENTER, 0.5);
-		}
+		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage);
 
 		return 0;
 	}
 	void setParams(
-		std::shared_ptr<TrackingOpenPoseEvent>& trackingTmp,
-		std::shared_ptr<VideoOpenPoseEvent>& videoTmp,
-		std::shared_ptr<PreviewOpenPoseEvent>& previewTmp
+		const std::shared_ptr<TrackingOpenPoseEvent> trackingTmp,
+		const std::shared_ptr<VideoOpenPoseEvent> videoTmp,
+		const std::shared_ptr<PreviewOpenPoseEvent> previewTmp = nullptr
 	)
 	{
 		tracking = trackingTmp;
 		video = videoTmp;
 		preview = previewTmp;
+
+		if (!preview) return;
 
 		// マウスイベント処理
 		preview->addMouseEventListener([&](int event, int x, int y) {
@@ -67,10 +76,12 @@ public:
 			{
 			// マウス移動時
 			case cv::EVENT_MOUSEMOVE:
+				mouse.x = x; mouse.y = y;
 				break;
 
 			// 左クリック時
 			case cv::EVENT_LBUTTONDOWN:
+				std::cout << x << ", " << y << std::endl;
 				break;
 
 			// 右クリック時
@@ -85,8 +96,6 @@ public:
 
 		// キーイベント処理
 		preview->addKeyboardEventListener([&](int key) {
-			std::cout << key << std::endl;
-
 			switch (key)
 			{
 			// Jキーで30フレーム戻る
@@ -97,6 +106,11 @@ public:
 			// Kキーで30フレーム進む
 			case 'k':
 				video->seekRelative(30);
+				break;
+
+			// Aキーで画面表示切替
+			case 'a':
+				previewMode = (previewMode + 1) % 2;
 				break;
 
 			// スペースキーで動画の再生/一時停止
@@ -139,7 +153,9 @@ int main(int argc, char* argv[])
 	// 出力画像のプレビューウィンドウを生成する処理の追加
 	auto preview = mop.addEventListener<PreviewOpenPoseEvent>("result");
 
+
 	custom->setParams(tracking, video, preview);
+
 
 	// openposeの起動
 	int ret = mop.startup();

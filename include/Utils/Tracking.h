@@ -7,10 +7,10 @@
 #include <map>
 #include <string>
 #include <iostream>
-#include <opencv2/core/core.hpp>
-#include <openpose/utilities/openCv.hpp>
+
 #include <Utils/Vector.h>
 #include <OpenPoseWrapper/OpenPoseEvent.h>
+#include <Utils/Gui.h>
 
 namespace op
 {
@@ -201,24 +201,24 @@ namespace op
 		}
 
 		// 骨格を更新する
-		void update(PeopleList& peopleList)
+		void updateCount(PeopleList& people)
 		{
 			// トラッキングが外れていない人のカウンタをリセット
 			dynamicUpCount = 0;
 			dynamicDownCount = 0;
 			// トラッキングが外れていない人の移動方向カウント
-			const std::vector<uint64_t> currentIndex = peopleList.getCurrentIndices();
+			const std::vector<uint64_t> currentIndex = people.getCurrentIndices();
 			for (size_t index : currentIndex)
 			{
-				auto e = judgeUpOrDown(peopleList.getFirstTree(index), peopleList.getCurrentTree(index));
+				auto e = judgeUpOrDown(people.getFirstTree(index), people.getCurrentTree(index));
 				if (e == Event::UP) dynamicUpCount++;
 				if (e == Event::DOWN) dynamicDownCount++;
 			}
 			// トラッキングが外れた人の移動方向カウント
-			const std::vector<uint64_t> lostIndex = peopleList.getLostIndices();
+			const std::vector<uint64_t> lostIndex = people.getLostIndices();
 			for (size_t index : lostIndex)
 			{
-				auto e = judgeUpOrDown(peopleList.getFirstTree(index), peopleList.getBackTree(index));
+				auto e = judgeUpOrDown(people.getFirstTree(index), people.getBackTree(index));
 				if (e == Event::UP) staticUpCount++;
 				if (e == Event::DOWN) staticDownCount++;
 			}
@@ -262,10 +262,37 @@ namespace op
 		inline uint64_t getDownCount() { return staticDownCount + dynamicDownCount; }
 
 		// 基準線の描画
-		void drawLine(cv::Mat& mat)
+		void drawJudgeLine(cv::Mat& mat)
 		{
 			for (auto line : lines)
 				cv::line(mat, { (int)line.lineStartX, (int)line.lineStartY }, { (int)line.lineEndX, (int)line.lineEndY }, cv::Scalar{ 255.0, 255.0, 255.0 }, 2);
+		}
+
+		// 人々の始点と終点を結ぶ直線の描画
+		void drawPeopleLine(cv::Mat& mat, PeopleList& people, bool drawId)
+		{
+			// トラッキングの始点と終点を結ぶ直線を描画
+			for (size_t index : people.getCurrentIndices())
+			{
+				auto firstTree = people.getFirstTree(index);
+				auto currentTree = people.getCurrentTree(index);
+				if ((!firstTree.isValid()) || (!currentTree.isValid())) continue;
+
+				// 直線の描画
+				cv::line(mat, { (int)firstTree.average().x, (int)firstTree.average().y }, { (int)currentTree.average().x, (int)currentTree.average().y }, cv::Scalar{
+					(double)((int)((std::sin((double)index * 463763.0) + 1.0) * 100000.0) % 120 + 80),
+					(double)((int)((std::sin((double)index * 1279.0) + 1.0) * 100000.0) % 120 + 80),
+					(double)((int)((std::sin((double)index * 92763.0) + 1.0) * 100000.0) % 120 + 80)
+					}, 2.0);
+
+				// idの描画
+
+				if (drawId) gui::text(
+					mat, std::to_string(index),
+					{ (int)currentTree.average().x, (int)currentTree.average().y },
+					gui::CENTER_CENTER, 0.5
+				);
+			}
 		}
 	};
 }
