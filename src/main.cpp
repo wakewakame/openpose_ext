@@ -12,33 +12,60 @@ class CustomOpenPoseEvent : public OpenPoseEvent
 private:
 	std::shared_ptr<TrackingOpenPoseEvent> tracking;
 	std::shared_ptr<VideoOpenPoseEvent> video;
+	std::shared_ptr<SqlOpenPoseEvent> sql;
 	std::shared_ptr<PreviewOpenPoseEvent> preview;
 	op::PeopleLineCounter peopleLineCounter;
 	vt::ScreenToGround screenToGround;
 	cv::Point mouse;
 	int previewMode;
-public:
-	CustomOpenPoseEvent() : previewMode(0) {}
-	virtual ~CustomOpenPoseEvent() {}
-	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final { return 0; }
-	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
+
+	int checkError()
 	{
-		if ((!tracking) || (!video))
+		if ((!tracking) || (!video) || (!sql) || (!preview))
 		{
 			std::cout
-				<< "TrackingOpenPoseEventもしくはVideoOpenPoseEventが未指定です。\n"
+				<< "TrackingOpenPoseEvent, VideoOpenPoseEvent, SqlOpenPoseEvent, PreviewOpenPoseEventのいずれかが未指定です。\n"
 				<< "setParams関数で正しい値を指定してください。"
 				<< std::endl;
 			return 1;
 		}
+		return 0;
+	}
+public:
+	CustomOpenPoseEvent() : previewMode(0) {}
+	virtual ~CustomOpenPoseEvent() {}
+	int init() override final
+	{
+		if (checkError()) return 1;
 
-		op::PeopleList& people = tracking->people;
+		// people_with_trackingテーブルを再生成
+		sql->database->exec(u8"DROP TABLE IF EXISTS people_with_tracking");
+		if (sql->createTableIfNoExist(
+			u8"people_with_tracking",
+			u8"frame INTEGER, people INTEGER, x REAL, y REAL",
+			u8"frame"
+		)) return 1;
+
+		// people_with_normalized_trackingテーブルを再生成
+		sql->database->exec(u8"DROP TABLE IF EXISTS people_with_normalized_tracking");
+		if (sql->createTableIfNoExist(
+			u8"people_with_normalized_tracking",
+			u8"frame INTEGER, people INTEGER, x REAL, y REAL",
+			u8"frame"
+		)) return 1;
+
+		return 0;
+	}
+	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final { return 0; }
+	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
+	{
+		if (checkError()) return 1;
 
 		// 人数カウント
 		peopleLineCounter.setLine(579, 578, 1429, 577, 100.0);  // カウントの基準線の座標設定
-		peopleLineCounter.updateCount(people);  // カウントの更新
+		peopleLineCounter.updateCount(tracking->people);  // カウントの更新
 		peopleLineCounter.drawJudgeLine(imageInfo.outputImage);  // 基準線の描画
-		peopleLineCounter.drawPeopleLine(imageInfo.outputImage, people, true);  // 人々の始点と終点の描画
+		peopleLineCounter.drawPeopleLine(imageInfo.outputImage, tracking->people, true);  // 人々の始点と終点の描画
 
 		// カウントを表示
 		gui::text(imageInfo.outputImage, std::string("up : ") + std::to_string(peopleLineCounter.getUpCount()), { 20, 200 });
@@ -53,22 +80,56 @@ public:
 			905, 242
 		);
 		screenToGround.drawAreaLine(imageInfo.outputImage);  // 射影変換に使用する4点の範囲を描画
+		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage); // プレビュー
 
-		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage);
+		// people_with_tracking、people_with_normalized_trackingテーブルの更新
+		try
+		{
+			SQLite::Statement pwtQuery(*sql->database, u8"INSERT INTO people_with_tracking VALUES (?, ?, ?, ?)");
+			SQLite::Statement pwntQuery(*sql->database, u8"INSERT INTO people_with_normalized_tracking VALUES (?, ?, ?, ?)");
+			for (auto&& index : tracking->people.getCurrentIndices())
+			{
+				auto tree = tracking->people.getCurrentTree(index);
+				if (tree.frameNumber != imageInfo.frameNumber) continue;
+				auto position = tree.average();
+
+				pwtQuery.reset();
+				pwtQuery.bind(1, (long long)imageInfo.frameNumber);
+				pwtQuery.bind(2, (long long)index);
+				pwtQuery.bind(3, (double)position.x);
+				pwtQuery.bind(4, (double)position.y);
+				(void)pwtQuery.exec();
+
+				auto normal = screenToGround.translate(vt::Vector4{ position.x, position.y });
+				pwntQuery.reset();
+				pwntQuery.bind(1, (long long)imageInfo.frameNumber);
+				pwntQuery.bind(2, (long long)index);
+				pwntQuery.bind(3, (double)normal.x);
+				pwntQuery.bind(4, (double)normal.y);
+				(void)pwntQuery.exec();
+			}
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << u8"error : " << __FILE__ << u8" : L" << __LINE__ << u8"\n" << e.what() << std::endl;
+			return 1;
+		}
 
 		return 0;
 	}
 	void setParams(
 		const std::shared_ptr<TrackingOpenPoseEvent> trackingTmp,
 		const std::shared_ptr<VideoOpenPoseEvent> videoTmp,
-		const std::shared_ptr<PreviewOpenPoseEvent> previewTmp = nullptr
+		const std::shared_ptr<SqlOpenPoseEvent> sqlTmp,
+		const std::shared_ptr<PreviewOpenPoseEvent> previewTmp
 	)
 	{
 		tracking = trackingTmp;
 		video = videoTmp;
+		sql = sqlTmp;
 		preview = previewTmp;
 
-		if (!preview) return;
+		if (checkError()) return;
 
 		// マウスイベント処理
 		preview->addMouseEventListener([&](int event, int x, int y) {
@@ -154,7 +215,7 @@ int main(int argc, char* argv[])
 	auto preview = mop.addEventListener<PreviewOpenPoseEvent>("result");
 
 
-	custom->setParams(tracking, video, preview);
+	custom->setParams(tracking, video, sql, preview);
 
 
 	// openposeの起動

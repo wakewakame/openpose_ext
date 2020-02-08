@@ -155,106 +155,26 @@ namespace op
 
 		enum Event { UP, DOWN, NOTHING };
 
-		bool isCross(vt::Vector4& p1Start, vt::Vector4& p1End, vt::Vector4& p2Start, vt::Vector4& p2End)
-		{
-			// p1Startからp1Endへの直線とp2Startからp2Endへの直線が交差しているかどうかを求める
-			// 参考 : https://imagingsolution.blog.fc2.com/blog-entry-137.html
-			double s1 = ((p2End.x - p2Start.x) * (p1Start.y - p2Start.y) - (p2End.y - p2Start.y) * (p1Start.x - p2Start.x)) / 2.0;
-			double s2 = ((p2End.x - p2Start.x) * (p2Start.y - p1End.y) - (p2End.y - p2Start.y) * (p2Start.x - p1End.x)) / 2.0;
-			if (s1 + s2 == 0.0) return false;
-			double p = s1 / (s1 + s2);
-			return (0.0 <= p && p <= 1.0);
-		}
+		bool isCross(vt::Vector4& p1Start, vt::Vector4& p1End, vt::Vector4& p2Start, vt::Vector4& p2End);
 
-		Event judgeUpOrDown(op::Tree& peopleStart, op::Tree& peopleEnd, Line& line)
-		{
-			auto startPos = peopleStart.average();  // 歩行者のトラッキングを開始した点
-			auto endPos = peopleEnd.average();  // 歩行者のトラッキングを終了した点
-			auto vecLine = vt::Vector4((double)line.lineEndX - (double)line.lineStartX, (double)line.lineEndY - (double)line.lineStartY);  // 人数カウントを行う基準線のベクトル
-			auto vecStart = vt::Vector4((double)startPos.x - (double)line.lineStartX, (double)startPos.y - (double)line.lineStartY);  // 人数カウントを行う基準線の始点からstartPosへのベクトル
-			auto vecEnd = vt::Vector4((double)endPos.x - (double)line.lineStartX, (double)endPos.y - (double)line.lineStartY);  // 人数カウントを行う基準線の始点からvecEndへのベクトル
-			if (!isCross(vt::Vector4(0.0, 0.0), vecLine, vecStart, vecEnd)) return Event::NOTHING;  // startからendを結ぶ直線がvecLineの上を通過していない場合
-			// 「vecLineを90度回転させた線」と「vecStart」との内積をもとに、startPosがvecLineの上側にあるかどうかを判定
-			bool startIsUp = vecStart.x * vecLine.y > vecStart.y* vecLine.x;
-			// 「vecLineを90度回転させた線」と「vecEnd」との内積をもとに、endPosがvecLineの上側にあるかどうかを判定
-			bool endIsUp = vecEnd.x * vecLine.y > vecEnd.y* vecLine.x;
-			if ((!startIsUp) && endIsUp) return Event::UP;  // 歩行者のトラッキングが人数カウントを行う基準線を超えて上に移動していた場合
-			if (startIsUp && (!endIsUp)) return Event::DOWN;  // 歩行者のトラッキングが人数カウントを行う基準線を超えて下に移動していた場合
-			return Event::NOTHING;  // それ以外
-		}
+		Event judgeUpOrDown(op::Tree& peopleStart, op::Tree& peopleEnd, Line& line);
 
-		Event judgeUpOrDown(op::Tree& peopleStart, op::Tree& peopleEnd)
-		{
-			Event e = Event::NOTHING;
-			for (size_t i = 0; i < lines.size(); i++)
-			{
-				if (i == 0) e = judgeUpOrDown(peopleStart, peopleEnd, lines[i]);
-				else if (e != judgeUpOrDown(peopleStart, peopleEnd, lines[i])) return Event::NOTHING;
-			}
-			return e;
-		}
+		Event judgeUpOrDown(op::Tree& peopleStart, op::Tree& peopleEnd);
 
 	public:
-		PeopleLineCounter(float startX = 0.0f, float startY = 0.0f, float endX = 1.0f, float endY = 1.0f)
-		{
-			setLine(startX, startY, endX, endY);
-		}
+		PeopleLineCounter(float startX = 0.0f, float startY = 0.0f, float endX = 1.0f, float endY = 1.0f);
 
 		// 骨格を更新する
-		void updateCount(PeopleList& people)
-		{
-			// トラッキングが外れていない人のカウンタをリセット
-			dynamicUpCount = 0;
-			dynamicDownCount = 0;
-			// トラッキングが外れていない人の移動方向カウント
-			const std::vector<uint64_t> currentIndex = people.getCurrentIndices();
-			for (size_t index : currentIndex)
-			{
-				auto e = judgeUpOrDown(people.getFirstTree(index), people.getCurrentTree(index));
-				if (e == Event::UP) dynamicUpCount++;
-				if (e == Event::DOWN) dynamicDownCount++;
-			}
-			// トラッキングが外れた人の移動方向カウント
-			const std::vector<uint64_t> lostIndex = people.getLostIndices();
-			for (size_t index : lostIndex)
-			{
-				auto e = judgeUpOrDown(people.getFirstTree(index), people.getBackTree(index));
-				if (e == Event::UP) staticUpCount++;
-				if (e == Event::DOWN) staticDownCount++;
-			}
-		}
+		void updateCount(PeopleList& people);
 
 		// カウントのリセット
-		inline void resetCount()
-		{
-			staticUpCount = 0;
-			staticDownCount = 0;
-			dynamicUpCount = 0;
-			dynamicDownCount = 0;
-		}
+		void resetCount();
 
 		// カウントの基準線の位置設定(始点X, 始点Y, 終点X, 終点Y)
-		inline void setLine(float lineStartX, float lineStartY, float lineEndX, float lineEndY)
-		{
-			this->lines.clear();
-			this->lines.push_back(Line{ lineStartX, lineStartY, lineEndX, lineEndY });
-		}
+		void setLine(float lineStartX, float lineStartY, float lineEndX, float lineEndY);
 
 		// カウントの基準線の位置設定(始点X, 始点Y, 終点X, 終点Y, 線の太さ)
-		inline void setLine(float lineStartX, float lineStartY, float lineEndX, float lineEndY, float lineWeigth)
-		{
-
-			float lineVecX = lineEndX - lineStartX;
-			float lineVecY = lineEndY - lineStartY;
-			float lineVecLength = std::sqrt(lineVecX * lineVecX + lineVecY * lineVecY);
-			float lineNormalX = -lineVecY / lineVecLength;
-			float lineNormalY = lineVecX / lineVecLength;
-			float moveX = lineNormalX * lineWeigth * 0.5f;
-			float moveY = lineNormalY * lineWeigth * 0.5f;
-			this->lines.clear();
-			this->lines.push_back(Line{ lineStartX - moveX, lineStartY - moveY, lineEndX - moveX, lineEndY - moveY });
-			this->lines.push_back(Line{ lineStartX + moveX, lineStartY + moveY, lineEndX + moveX, lineEndY + moveY });
-		}
+		void setLine(float lineStartX, float lineStartY, float lineEndX, float lineEndY, float lineWeigth);
 
 		// 基準線を上方向に移動した人のカウントを取得
 		inline uint64_t getUpCount() { return staticUpCount + dynamicUpCount; }
@@ -262,37 +182,9 @@ namespace op
 		inline uint64_t getDownCount() { return staticDownCount + dynamicDownCount; }
 
 		// 基準線の描画
-		void drawJudgeLine(cv::Mat& mat)
-		{
-			for (auto line : lines)
-				cv::line(mat, { (int)line.lineStartX, (int)line.lineStartY }, { (int)line.lineEndX, (int)line.lineEndY }, cv::Scalar{ 255.0, 255.0, 255.0 }, 2);
-		}
+		void drawJudgeLine(cv::Mat& mat);
 
 		// 人々の始点と終点を結ぶ直線の描画
-		void drawPeopleLine(cv::Mat& mat, PeopleList& people, bool drawId)
-		{
-			// トラッキングの始点と終点を結ぶ直線を描画
-			for (size_t index : people.getCurrentIndices())
-			{
-				auto firstTree = people.getFirstTree(index);
-				auto currentTree = people.getCurrentTree(index);
-				if ((!firstTree.isValid()) || (!currentTree.isValid())) continue;
-
-				// 直線の描画
-				cv::line(mat, { (int)firstTree.average().x, (int)firstTree.average().y }, { (int)currentTree.average().x, (int)currentTree.average().y }, cv::Scalar{
-					(double)((int)((std::sin((double)index * 463763.0) + 1.0) * 100000.0) % 120 + 80),
-					(double)((int)((std::sin((double)index * 1279.0) + 1.0) * 100000.0) % 120 + 80),
-					(double)((int)((std::sin((double)index * 92763.0) + 1.0) * 100000.0) % 120 + 80)
-					}, 2.0);
-
-				// idの描画
-
-				if (drawId) gui::text(
-					mat, std::to_string(index),
-					{ (int)currentTree.average().x, (int)currentTree.average().y },
-					gui::CENTER_CENTER, 0.5
-				);
-			}
-		}
+		void drawPeopleLine(cv::Mat& mat, PeopleList& people, bool drawId);
 	};
 }
