@@ -55,6 +55,21 @@ public:
 		{
 			query.reset();
 			bind(query, 1, body...);
+		}
+		catch (const std::exception & e)
+		{
+			std::cout << "error : " << __FILE__ << " : L" << __LINE__ << "\n" << e.what() << std::endl;
+			return 1;
+		}
+
+		return 0;
+	}
+	template<typename... Body>
+	int bindAllAndExec(SQLite::Statement& query, Body... body)
+	{
+		try
+		{
+			if (bindAll(query, body...)) return 1;
 			(void)query.exec();
 		}
 		catch (const std::exception & e)

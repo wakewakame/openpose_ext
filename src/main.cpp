@@ -70,6 +70,7 @@ public:
 
 		// トラッキング
 		people.addFrame(imageInfo);
+		//people.addFrame(imageInfo, std::dynamic_pointer_cast<Database>(sql));
 
 		// 人数カウント
 		peopleLineCounter.setLine(579, 578, 1429, 577, 100.0);  // カウントの基準線の座標設定
@@ -101,15 +102,15 @@ public:
 			if (tree.frameNumber != imageInfo.frameNumber) continue;
 			auto position = tree.average();
 			auto normal = screenToGround.translate(vt::Vector4{ position.x, position.y });
-			if (sql->bindAll(pwtQuery, imageInfo.frameNumber, index, position.x, position.y)) return 1;
-			if (sql->bindAll(pwntQuery, imageInfo.frameNumber, index, normal.x, normal.y)) return 1;
+			if (sql->bindAllAndExec(pwtQuery, imageInfo.frameNumber, index, position.x, position.y)) return 1;
+			if (sql->bindAllAndExec(pwntQuery, imageInfo.frameNumber, index, normal.x, normal.y)) return 1;
 		}
 
 		// people_countテーブルの更新
 		if (peopleLineCounter.isChanged())
 		{
 			SQLite::Statement pcQuery(*sql->database, u8"INSERT INTO people_count VALUES (?, ?, ?)");
-			if (sql->bindAll(pcQuery, imageInfo.frameNumber, peopleLineCounter.getUpCount(), peopleLineCounter.getDownCount())) return 1;
+			if (sql->bindAllAndExec(pcQuery, imageInfo.frameNumber, peopleLineCounter.getUpCount(), peopleLineCounter.getDownCount())) return 1;
 		}
 
 		return 0;

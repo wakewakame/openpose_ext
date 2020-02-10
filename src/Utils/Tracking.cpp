@@ -203,6 +203,96 @@ namespace op
 			if (lostFlag) firstTrees[addIndex] = currentTrees[addIndex];
 		}
 	}
+	void PeopleList::addFrame(ImageInfo& imageInfo, std::shared_ptr<Database>& database)
+	{
+		// 現在のフレームの骨格検出数が0なら終了
+		if (imageInfo.people.size() == 0) return;
+
+		// 現在のフレームのデータがに既にsqlに存在していれば終了
+		if (database->isDataExist(u8"people_with_tracking", u8"frame", imageInfo.frameNumber)) return;
+
+		// 1フレーム前からnumberFramesToLostフレーム前までの最新の骨格を取得
+		SQLite::Statement query(*(database->database), u8"SELECT * FROM people_with_tracking WHERE ? <= frame AND frame < ? GROUP BY people HAVING frame = MAX(frame)");
+		database->bindAll(query, (int64_t)imageInfo.frameNumber - (int64_t)numberFramesToLost, (int64_t)imageInfo.frameNumber);
+		std::map<size_t, std::vector<ImageInfo::Node>> backPeople;
+		while (query.executeStep())
+		{
+			size_t index = (size_t)query.getColumn(1).getInt64();
+			for (int nodeIndex = 0; nodeIndex < 25; nodeIndex++)
+			{
+				backPeople[index].push_back(ImageInfo::Node{
+					(float)query.getColumn(2 + nodeIndex * 3 + 0).getDouble(),
+					(float)query.getColumn(2 + nodeIndex * 3 + 1).getDouble(),
+					(float)query.getColumn(2 + nodeIndex * 3 + 2).getDouble()
+				});
+			}
+		}
+
+		// SQL文の生成
+		std::string row = u8"?";
+		for (int colIndex = 0; colIndex < 76; colIndex++) row += u8", ?";
+		row = u8"INSERT INTO people_with_tracking VALUES (" + row + u8")";
+		SQLite::Statement pwtQuery(*(database->database), row);
+
+		// 現在のフレームの人数分ループ
+		for (auto currentPerson = imageInfo.people.begin(); currentPerson != imageInfo.people.end(); currentPerson++)
+		{
+			// 骨格データの信頼度が閾値未満であればスキップ
+			auto&& currentNodes = currentPerson->second;
+			uint64_t confidenceCount = 0;
+			for (auto node : currentNodes) { if (node.confidence > confidenceThreshold) confidenceCount++; }
+			if (confidenceCount < numberNodesToTrust) continue;
+
+			// 前フレームの中で一番距離が近かった人のインデックスを取得
+			uint64_t nearestPeopleIndex = 0;  // 前フレームの中で一番距離が近かった人のインデックスを格納する一時変数
+			float nearestLength = -1.0f;  // 前フレームの中で一番距離が近かった長さを格納する一時変数
+			bool lostFlag = true;  // 前フレームで一番距離が近かった人が検出できなかった場合にTrueになるフラグ
+
+			// 前フレームの人数分ループ
+			for (auto&& backPerson = backPeople.begin(); backPerson != backPeople.end(); backPerson++)
+			{
+				uint64_t index = backPerson->first;  // インデックスの取得
+				auto&& backNodes = backPerson->second;  // 骨格情報の取得
+
+				// 前フレームからの移動距離を算出
+				float distance = getDistance(backNodes, currentNodes);
+
+				// 移動距離が正常に算出できなかった、もしくはdistanceThresholdより大きい値であった場合は除外
+				if ((distance < 0.0f) || (distance > distanceThreshold)) continue;
+
+				// 記録更新判定
+				if (lostFlag || (distance < nearestLength))
+				{
+					nearestPeopleIndex = index;  // 一番距離が近い人のインデックスを更新
+					nearestLength = distance;  // その距離を更新
+					lostFlag = false;  // フラグを折る
+				}
+			}
+
+			// 前フレームで一番距離が近かった人が検出できた場合はその人のインデックスを求める
+			uint64_t addIndex = nearestPeopleIndex;
+			// 前フレームで一番距離が近かった人が検出できなかった場合は新しいインデックスを求める
+			if (lostFlag)
+			{
+				// 現在SQLに登録された人の総数を取得
+				SQLite::Statement peopleCountQuery(*(database->database), "SELECT COUNT(DISTINCT people) from people_with_tracking");
+				(void)peopleCountQuery.executeStep();
+				addIndex = peopleCountQuery.getColumn(0).getInt();
+			}
+
+			// 現在のフレームに人を追加
+			pwtQuery.reset();
+			pwtQuery.bind(1, (long long)imageInfo.frameNumber);
+			pwtQuery.bind(2, (long long)addIndex);
+			for (size_t nodeIndex = 0; nodeIndex < currentNodes.size(); nodeIndex++)
+			{
+				pwtQuery.bind(3 + nodeIndex * 3 + 0, (double)currentNodes[nodeIndex].x);
+				pwtQuery.bind(3 + nodeIndex * 3 + 1, (double)currentNodes[nodeIndex].y);
+				pwtQuery.bind(3 + nodeIndex * 3 + 2, (double)currentNodes[nodeIndex].confidence);
+			}
+			(void)pwtQuery.exec();
+		}
+	}
 
 	std::vector<uint64_t> PeopleList::getCurrentIndices()
 	{
@@ -254,6 +344,21 @@ namespace op
 	Tree PeopleList::getFirstTree(uint64_t index) {
 		if (firstTrees.count(index) == 0) return Tree();
 		return firstTrees[index];
+	}
+	float PeopleList::getDistance(const std::vector<ImageInfo::Node>& nodes1, const std::vector<ImageInfo::Node>& nodes2)
+	{
+		uint64_t samples = 0;  // 有効な関節のサンプル数
+		float distance = 0.0f;  // 有効な全関節の移動量の平均
+		for (uint64_t index = 0; index < nodes1.size(); index++)
+		{
+			// 閾値以下の関節は無効
+			if ((nodes1[index].confidence <= confidenceThreshold) && (nodes2[index].confidence <= confidenceThreshold)) continue;
+			float x = nodes1[index].x - nodes2[index].x;
+			float y = nodes1[index].y - nodes2[index].y;
+			distance += std::sqrtf((x * x) + (y * y));
+			samples++;
+		}
+		return (samples == 0) ? (-1.0) : (distance / samples);
 	}
 
 	bool PeopleLineCounter::isCross(vt::Vector4& p1Start, vt::Vector4& p1End, vt::Vector4& p2Start, vt::Vector4& p2End)

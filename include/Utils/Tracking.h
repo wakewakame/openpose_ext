@@ -8,9 +8,10 @@
 #include <string>
 #include <iostream>
 
-#include <Utils/Vector.h>
 #include <OpenPoseWrapper/OpenPoseEvent.h>
+#include <Utils/Vector.h>
 #include <Utils/Gui.h>
+#include <Utils/Database.h>
 
 namespace op
 {
@@ -108,6 +109,7 @@ namespace op
 
 		// 骨格データを更新する
 		void addFrame(ImageInfo& imageInfo);
+		void addFrame(ImageInfo& imageInfo, std::shared_ptr<Database>& database);
 
 		// 現在のフレームに映っているすべての人のIDを配列で取得する
 		std::vector<uint64_t> getCurrentIndices();
@@ -135,6 +137,8 @@ namespace op
 		std::map<uint64_t, Tree> backTrees;
 		std::map<uint64_t, Tree> firstTrees;
 		uint64_t sumOfPeople = 0;
+
+		float getDistance(const std::vector<ImageInfo::Node>& nodes1, const std::vector<ImageInfo::Node>& nodes2);
 	};
 
 	// 直線の上を何人の人が、どちらの方向に移動したかをカウントするクラス

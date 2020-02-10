@@ -66,16 +66,14 @@ public:
 				while (peopleQuery.executeStep())
 				{
 					size_t index = (size_t)peopleQuery.getColumn(1).getInt64();
-					std::vector<ImageInfo::Node> nodes;
 					for (int nodeIndex = 0; nodeIndex < 25; nodeIndex++)
 					{
-						nodes.push_back(ImageInfo::Node{
+						imageInfo.people[index].push_back(ImageInfo::Node{
 							(float)peopleQuery.getColumn(2 + nodeIndex * 3 + 0).getDouble(),
 							(float)peopleQuery.getColumn(2 + nodeIndex * 3 + 1).getDouble(),
 							(float)peopleQuery.getColumn(2 + nodeIndex * 3 + 2).getDouble()
 						});
 					}
-					imageInfo.people[index] = std::move(nodes);
 				}
 			}
 		}
