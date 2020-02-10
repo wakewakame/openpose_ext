@@ -46,17 +46,17 @@ public:
 		sql->database->exec(u8"DROP TABLE IF EXISTS people_with_tracking");
 		if (sql->createTableIfNoExist(
 			u8"people_with_tracking",
-			u8"frame INTEGER, people INTEGER, x REAL, y REAL",
-			u8"frame"
+			u8"frame INTEGER, people INTEGER, x REAL, y REAL"
 		)) return 1;
+		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"frame", false)) return 1;
 
 		// people_with_normalized_trackingテーブルを再生成
 		sql->database->exec(u8"DROP TABLE IF EXISTS people_with_normalized_tracking");
 		if (sql->createTableIfNoExist(
 			u8"people_with_normalized_tracking",
-			u8"frame INTEGER, people INTEGER, x REAL, y REAL",
-			u8"frame"
+			u8"frame INTEGER, people INTEGER, x REAL, y REAL"
 		)) return 1;
+		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", false)) return 1;
 
 		return 0;
 	}
@@ -87,7 +87,7 @@ public:
 			905, 242
 		);
 		screenToGround.drawAreaLine(imageInfo.outputImage);  // 射影変換に使用する4点の範囲を描画
-		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage); // プレビュー
+		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage, 0.3f); // プレビュー
 
 		// people_with_tracking、people_with_normalized_trackingテーブルの更新
 		try
@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
 
 	// 入力する映像ファイルのフルパス
 	std::string videoPath =
-		R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\video\IMG_1533.mp4)";
+		R"(C:\Users\柴田研\Documents\VirtualUsers\17ad105\Videos\IMG_1533.mp4)";
 	// 入出力するsqlファイルのフルパス
 	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
 

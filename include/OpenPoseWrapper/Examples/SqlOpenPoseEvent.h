@@ -3,15 +3,13 @@
 #include <OpenPoseWrapper/OpenPoseEvent.h>
 #include <Utils/Database.h>
 
-class SqlOpenPoseEvent : public OpenPoseEvent
+class SqlOpenPoseEvent : public OpenPoseEvent, public Database
 {
 private:
 	std::string sqlPath;
-	std::unique_ptr<SQLite::Transaction> upTransaction;
 	long long saveFreq = 0;
 	size_t saveCountDown = 1;
 public:
-	Database database;
 	SqlOpenPoseEvent(const std::string& sqlPath, long long saveFreq = 0) :
 		sqlPath(sqlPath), saveFreq(saveFreq){}
 	virtual ~SqlOpenPoseEvent() {};
@@ -21,7 +19,7 @@ public:
 		try
 		{
 			// ファイルのオープン
-			database = createDatabase(
+			create(
 				sqlPath,
 				SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE
 			);
@@ -34,13 +32,14 @@ public:
 				row_title += u8", joint" + std::to_string(i) + u8"y REAL";
 				row_title += u8", joint" + std::to_string(i) + u8"confidence REAL";
 			}
-			if (createTableIfNoExist(u8"people", row_title, u8"frame")) return 1;
+			if (createTableIfNoExist(u8"people", row_title)) return 1;
+			if (createIndexIfNoExist(u8"people", u8"frame", false)) return 1;
+			if (createIndexIfNoExist(u8"people", u8"people", false)) return 1;
+			if (createIndexIfNoExist(u8"people", u8"frame", u8"people", true)) return 1;
 
 			// timestampテーブルが存在しない場合はテーブルを生成
-			if (createTableIfNoExist(u8"timestamp", u8"frame INTEGER PRIMARY KEY, timestamp INTEGER", u8"frame")) return 1;
-
-			// トランザクションの開始
-			upTransaction = std::make_unique<SQLite::Transaction>(*database);
+			if (createTableIfNoExist(u8"timestamp", u8"frame INTEGER PRIMARY KEY, timestamp INTEGER")) return 1;
+			if (createIndexIfNoExist(u8"timestamp", u8"frame", true)) return 1;
 		}
 		catch (const std::exception& e)
 		{
@@ -52,7 +51,7 @@ public:
 	}
 	void exit() override final
 	{
-		if (upTransaction) upTransaction->commit();
+		commit();
 	}
 	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
 	{
@@ -92,8 +91,8 @@ public:
 	{
 		try
 		{
-			// OpenPoseが骨格検出を行ったか確認
-			if (imageInfo.needOpenposeProcess)
+			// SQLにタイムスタンプが存在しなかった場合はSQLにデータを追加する
+			if (!isDataExist(u8"timestamp", u8"frame", imageInfo.frameNumber))
 			{
 				// peopleテーブルの更新
 				std::string row = u8"?";
@@ -124,11 +123,10 @@ public:
 			}
 
 			// sqlのセーブ
-			if ((saveFreq > 0) && (--saveCountDown <= 0) && upTransaction)
+			if ((saveFreq > 0) && (--saveCountDown <= 0))
 			{
 				saveCountDown = saveFreq;
-				upTransaction->commit();
-				upTransaction = std::make_unique<SQLite::Transaction>(*database);
+				commit();
 			}
 		}
 		catch (const std::exception& e) {
@@ -137,31 +135,5 @@ public:
 		}
 
 		return 0;
-	}
-	int createTableIfNoExist(const std::string& tableName, const std::string& rowTitles, const std::string& indexTitle = "")
-	{
-		try
-		{
-			if (!database->tableExists(tableName))
-			{
-				database->exec(u8"CREATE TABLE " + tableName + " (" + rowTitles + u8")");
-				if (indexTitle != u8"") database->exec(u8"CREATE INDEX idx_" + indexTitle + "_on_" + tableName + " ON " + tableName + "(" + indexTitle + ")");
-			}
-		}
-		catch (const std::exception& e)
-		{
-			std::cout << u8"error : " << __FILE__ << u8" : L" << __LINE__ << u8"\n" << e.what() << std::endl;
-			return 1;
-		}
-
-		return 0;
-	}
-
-	bool isDataExist(std::string tableName, std::string rowTitle, long long number)
-	{
-		SQLite::Statement timestampQuery(*database, u8"SELECT count(*) FROM " + tableName + " WHERE " + rowTitle + "=?");
-		timestampQuery.bind(1, (long long)number);
-		(void)timestampQuery.executeStep();
-		return (1 == timestampQuery.getColumn(0).getInt());
 	}
 };

@@ -486,23 +486,52 @@ namespace vt
 		cv::line(mat, { (int)p3.x, (int)p3.y }, { (int)p4.x, (int)p4.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
 		cv::line(mat, { (int)p4.x, (int)p4.y }, { (int)p1.x, (int)p1.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
 	}
-	cv::Mat ScreenToGround::perspective(const cv::Mat& src)
+	cv::Mat ScreenToGround::perspective(const cv::Mat& src, float zoom)
 	{
-		//変換元座標設定
-		cv::Point2f srcPoint[4] = { p1, p2, p3, p4 };
-		cv::Point2f dstPoint[4];
-		for (int i = 0; i < 4; i++)
+		// 指定した4点のスクリーン座標と現実の座標
+		std::vector<cv::Point2f> srcPoint{ p1, p2, p3, p4 };
+		std::vector<cv::Point2f> dstPoint;
+
+		// 指定した4点の現実の座標をdstPointに代入し、同時にx軸、y軸の最大値と最小値を取得
+		cv::Point2f min, max;
+		for (int i = 0; i < srcPoint.size(); i++)
 		{
 			auto p = translate(srcPoint[i]);
-			p.x = (p.x + 10.0) * (double)src.cols / 20.0;
-			p.y = (p.y + 10.0) * (double)src.rows / 20.0;
-			dstPoint[i] = p;
+			dstPoint.push_back(p);
+			if (i == 0) { min = p; max = p; }
+			else
+			{
+				min.x = (p.x < min.x) ? p.x : min.x;
+				min.y = (p.y < min.y) ? p.y : min.y;
+				max.x = (p.x > max.x) ? p.x : max.x;
+				max.y = (p.y > max.y) ? p.y : max.y;
+			}
 		}
+
+		// 現実座標の値が画面に丁度収まるように拡大縮小、移動
+		cv::Point2f size{ max.x - min.x, max.y - min.y };
+		for (auto&& p : dstPoint) { p.x -= min.x; p.y -= min.y; }
+		float rate = (size.x / size.y) / ((float)src.cols, (float)src.rows);
+		float scale = (rate > 1.0f) ? ((float)src.cols / size.x) : ((float)src.rows / size.y);
+		size.x *= scale; size.y *= scale;
+		cv::Point2f move = (rate > 1.0f) ? cv::Point2f{ 0.0f, ((float)src.rows - size.y) / 2.0f } : cv::Point2f{ ((float)src.cols - size.x) / 2.0f, 0.0f };
+		for (auto&& p : dstPoint) { p.x *= scale; p.y *= scale; p.x += move.x; p.y += move.y; }
+
+		// 拡大縮小
+		for (auto&& p : dstPoint)
+		{
+			p.x -= (float)src.cols / 2.0f; p.y -= (float)src.rows / 2.0f;
+			p.x *= zoom; p.y *= zoom;
+			p.x += (float)src.cols / 2.0f; p.y += (float)src.rows / 2.0f;
+		}
+
 		//変換行列作成
 		cv::Mat r_mat = cv::getPerspectiveTransform(srcPoint, dstPoint);
+
 		//図形変換処理
 		cv::Mat dst = cv::Mat::zeros(src.rows, src.cols, src.type());
 		cv::warpPerspective(src, dst, r_mat, dst.size(), cv::INTER_LINEAR);
+
 		return dst;
 	}
 };

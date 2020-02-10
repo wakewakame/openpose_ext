@@ -134,6 +134,6 @@ namespace vt
 		);
 		Vector4 translate(Vector4 p);
 		void drawAreaLine(cv::Mat& mat);
-		cv::Mat ScreenToGround::perspective(const cv::Mat& mat);
+		cv::Mat ScreenToGround::perspective(const cv::Mat& mat, float zoom = 1.0f);
 	};
 };
