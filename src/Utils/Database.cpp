@@ -41,7 +41,7 @@ Database::Database() {}
 
 Database::~Database()
 {
-	upTransaction->commit();
+	if (upTransaction) upTransaction->commit();
 }
 
 int Database::create(const std::string& path, const int aFlags)
@@ -67,7 +67,7 @@ int Database::commit()
 {
 	try
 	{
-		upTransaction->commit();
+		if (upTransaction) upTransaction->commit();
 		upTransaction = std::make_unique<SQLite::Transaction>(*database);
 	}
 	catch (const std::exception & e)
