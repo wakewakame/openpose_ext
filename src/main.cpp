@@ -44,20 +44,14 @@ public:
 
 		// people_with_trackingテーブルを再生成
 		if (sql->deleteTableIfExist(u8"people_with_tracking")) return 1;
-		if (sql->createTableIfNoExist(
-			u8"people_with_tracking",
-			u8"frame INTEGER, people INTEGER, x REAL, y REAL"
-		)) return 1;
+		if (sql->createTableIfNoExist(u8"people_with_tracking", u8"frame INTEGER, people INTEGER, x REAL, y REAL")) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"frame", false)) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"people", false)) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"frame", u8"people", true)) return 1;
 
 		// people_with_normalized_trackingテーブルを再生成
 		if (sql->deleteTableIfExist(u8"people_with_normalized_tracking")) return 1;
-		if (sql->createTableIfNoExist(
-			u8"people_with_normalized_tracking",
-			u8"frame INTEGER, people INTEGER, x REAL, y REAL"
-		)) return 1;
+		if (sql->createTableIfNoExist(u8"people_with_normalized_tracking", u8"frame INTEGER, people INTEGER, x REAL, y REAL")) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", false)) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"people", false)) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", u8"people", true)) return 1;
