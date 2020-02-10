@@ -43,20 +43,29 @@ public:
 		if (checkError()) return 1;
 
 		// people_with_trackingテーブルを再生成
-		sql->database->exec(u8"DROP TABLE IF EXISTS people_with_tracking");
+		if (sql->deleteTableIfExist(u8"people_with_tracking")) return 1;
 		if (sql->createTableIfNoExist(
 			u8"people_with_tracking",
 			u8"frame INTEGER, people INTEGER, x REAL, y REAL"
 		)) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"frame", false)) return 1;
+		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"people", false)) return 1;
+		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"frame", u8"people", true)) return 1;
 
 		// people_with_normalized_trackingテーブルを再生成
-		sql->database->exec(u8"DROP TABLE IF EXISTS people_with_normalized_tracking");
+		if (sql->deleteTableIfExist(u8"people_with_normalized_tracking")) return 1;
 		if (sql->createTableIfNoExist(
 			u8"people_with_normalized_tracking",
 			u8"frame INTEGER, people INTEGER, x REAL, y REAL"
 		)) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", false)) return 1;
+		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"people", false)) return 1;
+		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", u8"people", true)) return 1;
+
+		// people_countテーブルを作成
+		if (sql->deleteTableIfExist(u8"people_count")) return 1;
+		if (sql->createTableIfNoExist(u8"people_count", u8"frame INTEGER PRIMARY KEY, up INTEGER, down INTEGER")) return 1;
+		if (sql->createIndexIfNoExist(u8"people_count", u8"frame", true)) return 1;
 
 		return 0;
 	}
@@ -90,36 +99,23 @@ public:
 		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage, 0.3f); // プレビュー
 
 		// people_with_tracking、people_with_normalized_trackingテーブルの更新
-		try
+		SQLite::Statement pwtQuery(*sql->database, u8"INSERT INTO people_with_tracking VALUES (?, ?, ?, ?)");
+		SQLite::Statement pwntQuery(*sql->database, u8"INSERT INTO people_with_normalized_tracking VALUES (?, ?, ?, ?)");
+		for (auto&& index : people.getCurrentIndices())
 		{
-			SQLite::Statement pwtQuery(*sql->database, u8"INSERT INTO people_with_tracking VALUES (?, ?, ?, ?)");
-			SQLite::Statement pwntQuery(*sql->database, u8"INSERT INTO people_with_normalized_tracking VALUES (?, ?, ?, ?)");
-			for (auto&& index : people.getCurrentIndices())
-			{
-				auto tree = people.getCurrentTree(index);
-				if (tree.frameNumber != imageInfo.frameNumber) continue;
-				auto position = tree.average();
-
-				pwtQuery.reset();
-				pwtQuery.bind(1, (long long)imageInfo.frameNumber);
-				pwtQuery.bind(2, (long long)index);
-				pwtQuery.bind(3, (double)position.x);
-				pwtQuery.bind(4, (double)position.y);
-				(void)pwtQuery.exec();
-
-				auto normal = screenToGround.translate(vt::Vector4{ position.x, position.y });
-				pwntQuery.reset();
-				pwntQuery.bind(1, (long long)imageInfo.frameNumber);
-				pwntQuery.bind(2, (long long)index);
-				pwntQuery.bind(3, (double)normal.x);
-				pwntQuery.bind(4, (double)normal.y);
-				(void)pwntQuery.exec();
-			}
+			auto tree = people.getCurrentTree(index);
+			if (tree.frameNumber != imageInfo.frameNumber) continue;
+			auto position = tree.average();
+			auto normal = screenToGround.translate(vt::Vector4{ position.x, position.y });
+			if (sql->bindAll(pwtQuery, imageInfo.frameNumber, index, position.x, position.y)) return 1;
+			if (sql->bindAll(pwntQuery, imageInfo.frameNumber, index, normal.x, normal.y)) return 1;
 		}
-		catch (const std::exception& e)
+
+		// people_countテーブルの更新
+		if (peopleLineCounter.isChanged())
 		{
-			std::cout << u8"error : " << __FILE__ << u8" : L" << __LINE__ << u8"\n" << e.what() << std::endl;
-			return 1;
+			SQLite::Statement pcQuery(*sql->database, u8"INSERT INTO people_count VALUES (?, ?, ?)");
+			if (sql->bindAll(pcQuery, imageInfo.frameNumber, peopleLineCounter.getUpCount(), peopleLineCounter.getDownCount())) return 1;
 		}
 
 		return 0;

@@ -303,9 +303,14 @@ namespace op
 	// 骨格を更新する
 	void PeopleLineCounter::updateCount(PeopleList& people)
 	{
+		// 1フレーム前の情報を記憶
+		preUpCount = getUpCount();
+		preDownCount = getDownCount();
+
 		// トラッキングが外れていない人のカウンタをリセット
 		dynamicUpCount = 0;
 		dynamicDownCount = 0;
+
 		// トラッキングが外れていない人の移動方向カウント
 		const std::vector<uint64_t> currentIndex = people.getCurrentIndices();
 		for (size_t index : currentIndex)
@@ -314,6 +319,7 @@ namespace op
 			if (e == Event::UP) dynamicUpCount++;
 			if (e == Event::DOWN) dynamicDownCount++;
 		}
+
 		// トラッキングが外れた人の移動方向カウント
 		const std::vector<uint64_t> lostIndex = people.getLostIndices();
 		for (size_t index : lostIndex)

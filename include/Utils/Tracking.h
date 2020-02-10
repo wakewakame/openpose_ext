@@ -147,6 +147,9 @@ namespace op
 		// トラッキングが外れていない人のカウンタ
 		uint64_t dynamicUpCount = 0;  // 直線の上を上側に移動した人のカウント
 		uint64_t dynamicDownCount = 0;  // 直線の上を下側に移動した人のカウント
+		// 1フレーム前のstaticカウントとdynamicカウントの和
+		uint64_t preUpCount = 0;  // 直線の上を上側に移動した人のカウント
+		uint64_t preDownCount = 0;  // 直線の上を下側に移動した人のカウント
 		// 人数カウントを行う基準線の始点と終点
 		struct Line {
 			float lineStartX, lineStartY, lineEndX, lineEndY;
@@ -180,6 +183,9 @@ namespace op
 		inline uint64_t getUpCount() { return staticUpCount + dynamicUpCount; }
 		// 基準線を上方向に移動した人のカウントを取得
 		inline uint64_t getDownCount() { return staticDownCount + dynamicDownCount; }
+
+		// 1フレーム前と比べ、カウントに変化があったかどうかを取得
+		inline bool isChanged() { return ((preUpCount != getUpCount()) || preDownCount != getDownCount()); }
 
 		// 基準線の描画
 		void drawJudgeLine(cv::Mat& mat);

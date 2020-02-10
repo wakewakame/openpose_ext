@@ -135,6 +135,21 @@ int Database::createIndexIfNoExist(const std::string& tableName, const std::stri
 	return 0;
 }
 
+int Database::deleteTableIfExist(const std::string& tableName)
+{
+	try
+	{
+		database->exec(u8"DROP TABLE IF EXISTS " + tableName);
+	}
+	catch (const std::exception & e)
+	{
+		std::cout << "error : " << __FILE__ << " : L" << __LINE__ << "\n" << e.what() << std::endl;
+		return 1;
+	}
+
+	return 0;
+}
+
 bool Database::isDataExist(const  std::string& tableName, const  std::string& rowTitle, long long number)
 {
 	SQLite::Statement timestampQuery(*database, u8"SELECT count(*) FROM " + tableName + " WHERE " + rowTitle + "=?");
@@ -168,3 +183,5 @@ bool Database::isDataExist(const  std::string& tableName, const  std::string& ro
 	(void)timestampQuery.executeStep();
 	return (1 == timestampQuery.getColumn(0).getInt());
 }
+
+void Database::bind(SQLite::Statement&, size_t) {}
