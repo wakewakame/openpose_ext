@@ -154,37 +154,54 @@ int main(int argc, char* argv[])
 	MinimumOpenPose mop;
 
 
+
 	// 入力する映像ファイルのフルパス
-	std::string videoPath =
-		R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\video\58.mp4)";
+	std::string videoPath = R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\video\IMG_1533.mp4)";
+
 	// 入出力するsqlファイルのフルパス
-	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
+	std::string sqlPath = videoPath + ".sqlite3";
 
 
-	// sql入出力機能の追加
+
+	// SQL入出力機能の追加
 	auto sql = mop.addEventListener<SqlOpenPoseEvent>(sqlPath, 300);
+
 	// 動画読み込み処理の追加
 	auto video = mop.addEventListener<VideoOpenPoseEvent>(videoPath);
+
 	// 骨格のトラッキング処理の追加
 	auto tracker = mop.addEventListener<TrackingOpenPoseEvent>(sql);
+
 	// 人数カウント処理の追加
 	(void)mop.addEventListener<PeopleCounterOpenPoseEvent>(tracker, 579, 578, 1429, 577, 100.0, true);
+
 	// 出力画像に骨格情報などを描画する処理の追加
 	(void)mop.addEventListener<PlotInfoOpenPoseEvent>(true, true, false);
+
 	// 自分で定義したイベントリスナーの登録
 	auto custom = mop.addEventListener<CustomOpenPoseEvent>();
+
 	// 出力画像のプレビューウィンドウを生成する処理の追加
-	auto preview = mop.addEventListener<PreviewOpenPoseEvent>("result");
+	std::shared_ptr<PreviewOpenPoseEvent> preview;
+	preview = mop.addEventListener<PreviewOpenPoseEvent>("result");
+
 
 
 	custom->setParams(video, tracker, preview);
+
 
 
 	// openposeの起動
 	auto start = std::chrono::high_resolution_clock::now();
 	int ret = mop.startup();
 	double time = (1.0 / 1000.0) * (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
+	
+	
+	
+	// 起動から終了までに要した時間の表示
 	std::cout << "time score : " << time << " sec." << std::endl;
+
+
 
 	return ret;
 }
