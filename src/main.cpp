@@ -2,33 +2,28 @@
 #include <OpenPoseWrapper/Examples/SqlOpenPoseEvent.h>
 #include <OpenPoseWrapper/Examples/VideoOpenPoseEvent.h>
 #include <OpenPoseWrapper/Examples/PlotInfoOpenPoseEvent.h>
+#include <OpenPoseWrapper/Examples/TrackingOpenPoseEvent.h>
+#include <OpenPoseWrapper/Examples/PeopleCounterOpenPoseEvent.h>
 #include <OpenPoseWrapper/Examples/PreviewOpenPoseEvent.h>
 #include <regex>
 
-#include <Utils/Tracking.h>
 class CustomOpenPoseEvent : public OpenPoseEvent
 {
 private:
-	op::PeopleList people{
-		5,         // NUMBER_NODES_TO_TRUST
-		0.5f,   // CONFIDENCE_THRESHOLD
-		10,      // NUMBER_FRAMES_TO_LOST
-		50.0f  // DISTANCE_THRESHOLD
-	};
 	std::shared_ptr<VideoOpenPoseEvent> video;
+	std::shared_ptr<TrackingOpenPoseEvent> tracker;
 	std::shared_ptr<SqlOpenPoseEvent> sql;
 	std::shared_ptr<PreviewOpenPoseEvent> preview;
-	op::PeopleLineCounter peopleLineCounter;
 	vt::ScreenToGround screenToGround;
 	cv::Point mouse;
 	int previewMode;
 
 	int checkError()
 	{
-		if ((!video) || (!sql))
+		if ((!video) || (!tracker))
 		{
 			std::cout
-				<< "VideoOpenPoseEvent, SqlOpenPoseEventのいずれかが未指定です。\n"
+				<< "VideoOpenPoseEvent, TrackingOpenPoseEventのいずれかが未指定です。\n"
 				<< "setParams関数で正しい値を指定してください。"
 				<< std::endl;
 			return 1;
@@ -42,13 +37,6 @@ public:
 	{
 		if (checkError()) return 1;
 
-		// people_with_trackingテーブルを再生成
-		if (sql->deleteTableIfExist(u8"people_with_tracking")) return 1;
-		if (sql->createTableIfNoExist(u8"people_with_tracking", u8"frame INTEGER, people INTEGER, x REAL, y REAL")) return 1;
-		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"frame", false)) return 1;
-		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"people", false)) return 1;
-		if (sql->createIndexIfNoExist(u8"people_with_tracking", u8"frame", u8"people", true)) return 1;
-
 		// people_with_normalized_trackingテーブルを再生成
 		if (sql->deleteTableIfExist(u8"people_with_normalized_tracking")) return 1;
 		if (sql->createTableIfNoExist(u8"people_with_normalized_tracking", u8"frame INTEGER, people INTEGER, x REAL, y REAL")) return 1;
@@ -56,31 +44,12 @@ public:
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"people", false)) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", u8"people", true)) return 1;
 
-		// people_countテーブルを作成
-		if (sql->deleteTableIfExist(u8"people_count")) return 1;
-		if (sql->createTableIfNoExist(u8"people_count", u8"frame INTEGER PRIMARY KEY, up INTEGER, down INTEGER")) return 1;
-		if (sql->createIndexIfNoExist(u8"people_count", u8"frame", true)) return 1;
-
 		return 0;
 	}
 	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final { return 0; }
 	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
 	{
 		if (checkError()) return 1;
-
-		// トラッキング
-		people.addFrame(imageInfo);
-		//people.addFrame(imageInfo, std::dynamic_pointer_cast<Database>(sql));
-
-		// 人数カウント
-		peopleLineCounter.setLine(579, 578, 1429, 577, 100.0);  // カウントの基準線の座標設定
-		peopleLineCounter.updateCount(people);  // カウントの更新
-		peopleLineCounter.drawJudgeLine(imageInfo.outputImage);  // 基準線の描画
-		peopleLineCounter.drawPeopleLine(imageInfo.outputImage, people, true);  // 人々の始点と終点の描画
-
-		// カウントを表示
-		gui::text(imageInfo.outputImage, std::string("up : ") + std::to_string(peopleLineCounter.getUpCount()), { 20, 200 });
-		gui::text(imageInfo.outputImage, std::string("down : ") + std::to_string(peopleLineCounter.getDownCount()), { 20, 230 });
 
 		// 射影変換
 		screenToGround.setParams(
@@ -93,36 +62,29 @@ public:
 		screenToGround.drawAreaLine(imageInfo.outputImage);  // 射影変換に使用する4点の範囲を描画
 		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage, 0.3f); // プレビュー
 
-		// people_with_tracking、people_with_normalized_trackingテーブルの更新
-		SQLite::Statement pwtQuery(*sql->database, u8"INSERT INTO people_with_tracking VALUES (?, ?, ?, ?)");
-		SQLite::Statement pwntQuery(*sql->database, u8"INSERT INTO people_with_normalized_tracking VALUES (?, ?, ?, ?)");
-		for (auto&& index : people.getCurrentIndices())
+		// people_with_normalized_trackingテーブルの更新
+		if (!sql->isDataExist("people_with_normalized_tracking", "frame", imageInfo.frameNumber))
 		{
-			auto tree = people.getCurrentTree(index);
-			if (tree.frameNumber != imageInfo.frameNumber) continue;
-			auto position = tree.average();
-			auto normal = screenToGround.translate(vt::Vector4{ position.x, position.y });
-			if (sql->bindAllAndExec(pwtQuery, imageInfo.frameNumber, index, position.x, position.y)) return 1;
-			if (sql->bindAllAndExec(pwntQuery, imageInfo.frameNumber, index, normal.x, normal.y)) return 1;
-		}
-
-		// people_countテーブルの更新
-		if (peopleLineCounter.isChanged())
-		{
-			SQLite::Statement pcQuery(*sql->database, u8"INSERT INTO people_count VALUES (?, ?, ?)");
-			if (sql->bindAllAndExec(pcQuery, imageInfo.frameNumber, peopleLineCounter.getUpCount(), peopleLineCounter.getDownCount())) return 1;
+			SQLite::Statement insertQuery(*sql->database, u8"INSERT INTO people_with_normalized_tracking VALUES (?, ?, ?, ?)");
+			for (auto&& currentPerson = tracker->latestPeople.begin(); currentPerson != tracker->latestPeople.end(); currentPerson++)
+			{
+				auto&& position = TrackingOpenPoseEvent::getJointAverage(currentPerson->second);
+				auto normal = screenToGround.translate(vt::Vector4{ position.x, position.y });
+				if (sql->bindAllAndExec(insertQuery, imageInfo.frameNumber, currentPerson->first, normal.x, normal.y)) return 1;
+			}
 		}
 
 		return 0;
 	}
 	void setParams(
 		const std::shared_ptr<VideoOpenPoseEvent> videoTmp,
-		const std::shared_ptr<SqlOpenPoseEvent> sqlTmp,
+		const std::shared_ptr<TrackingOpenPoseEvent> trackingTmp,
 		const std::shared_ptr<PreviewOpenPoseEvent> previewTmp = nullptr
 	)
 	{
 		video = videoTmp;
-		sql = sqlTmp;
+		tracker = trackingTmp;
+		sql = trackingTmp->sql;
 		preview = previewTmp;
 
 		if (checkError()) return;
@@ -194,7 +156,7 @@ int main(int argc, char* argv[])
 
 	// 入力する映像ファイルのフルパス
 	std::string videoPath =
-		R"(C:\Users\柴田研\Documents\VirtualUsers\17ad105\Videos\IMG_1533.mp4)";
+		R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\video\58.mp4)";
 	// 入出力するsqlファイルのフルパス
 	std::string sqlPath = std::regex_replace(videoPath, std::regex(R"(\.[^.]*$)"), "") + ".sqlite3";
 
@@ -203,7 +165,11 @@ int main(int argc, char* argv[])
 	auto sql = mop.addEventListener<SqlOpenPoseEvent>(sqlPath, 300);
 	// 動画読み込み処理の追加
 	auto video = mop.addEventListener<VideoOpenPoseEvent>(videoPath);
-	// 出力画像に文字などを描画する処理の追加
+	// 骨格のトラッキング処理の追加
+	auto tracker = mop.addEventListener<TrackingOpenPoseEvent>(sql);
+	// 人数カウント処理の追加
+	(void)mop.addEventListener<PeopleCounterOpenPoseEvent>(tracker, 579, 578, 1429, 577, 100.0, true);
+	// 出力画像に骨格情報などを描画する処理の追加
 	(void)mop.addEventListener<PlotInfoOpenPoseEvent>(true, true, false);
 	// 自分で定義したイベントリスナーの登録
 	auto custom = mop.addEventListener<CustomOpenPoseEvent>();
@@ -211,7 +177,7 @@ int main(int argc, char* argv[])
 	auto preview = mop.addEventListener<PreviewOpenPoseEvent>("result");
 
 
-	custom->setParams(video, sql, preview);
+	custom->setParams(video, tracker, preview);
 
 
 	// openposeの起動

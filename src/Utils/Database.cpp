@@ -155,7 +155,7 @@ bool Database::isDataExist(const  std::string& tableName, const  std::string& ro
 	SQLite::Statement timestampQuery(*database, u8"SELECT count(*) FROM " + tableName + " WHERE " + rowTitle + "=?");
 	timestampQuery.bind(1, (long long)number);
 	(void)timestampQuery.executeStep();
-	return (1 == timestampQuery.getColumn(0).getInt());
+	return (0 < timestampQuery.getColumn(0).getInt());
 }
 
 bool Database::isDataExist(const  std::string& tableName, const  std::string& rowTitle1, std::string rowTitle2, long long number1, long long number2)
@@ -164,7 +164,7 @@ bool Database::isDataExist(const  std::string& tableName, const  std::string& ro
 	timestampQuery.bind(1, (long long)number1);
 	timestampQuery.bind(2, (long long)number2);
 	(void)timestampQuery.executeStep();
-	return (1 == timestampQuery.getColumn(0).getInt());
+	return (0 < timestampQuery.getColumn(0).getInt());
 }
 
 bool Database::isDataExist(const  std::string& tableName, const  std::string& rowTitle, const  std::string& text)
@@ -172,7 +172,7 @@ bool Database::isDataExist(const  std::string& tableName, const  std::string& ro
 	SQLite::Statement timestampQuery(*database, u8"SELECT count(*) FROM " + tableName + " WHERE " + rowTitle + "=?");
 	timestampQuery.bind(1, text);
 	(void)timestampQuery.executeStep();
-	return (1 == timestampQuery.getColumn(0).getInt());
+	return (0 < timestampQuery.getColumn(0).getInt());
 }
 
 bool Database::isDataExist(const  std::string& tableName, const  std::string& rowTitle1, const  std::string& rowTitle2, const  std::string& text1, const  std::string& text2)
@@ -181,7 +181,7 @@ bool Database::isDataExist(const  std::string& tableName, const  std::string& ro
 	timestampQuery.bind(1, text1);
 	timestampQuery.bind(2, text2);
 	(void)timestampQuery.executeStep();
-	return (1 == timestampQuery.getColumn(0).getInt());
+	return (0 < timestampQuery.getColumn(0).getInt());
 }
 
 void Database::bind(SQLite::Statement&, size_t) {}
