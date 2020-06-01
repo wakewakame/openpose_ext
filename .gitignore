@@ -12,3 +12,4 @@ _deps
 3rdparty/
 build/
 bin/
+.DS_Store
