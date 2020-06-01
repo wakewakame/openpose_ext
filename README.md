@@ -14,9 +14,9 @@
 その下の一覧から`Git for Windows`にチェックし、右下の`変更`を押します。 
 ### CMakeのインストール
 既にインストールされている場合はこの手順は飛ばしてください。  
-```
-(作成中)
-```
+以下のURLより`cmake-x.x.x-win64-x64.msi`(x.x.xはバージョン)をダウンロード、インストールします。  
+[https://cmake.org/download/](https://cmake.org/download/)  
+注意点として、インストーラーの途中に`Choose options for installing CMake`という選択画面があるので`Add CMake to the system PATH for all users`を選択します。  
 ### CUDAとcuDNNのインストール
 既にインストールされている場合はこの手順は飛ばしてください。  
 以下のURLよりCUDA 10.1をダウンロード、インストールします。  
