@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
 
 
 	// 入力する映像ファイルのフルパス
-	std::string videoPath = R"(G:\思い出\Dropbox\Dropbox\SDK\openpose\video\IMG_1533.mp4)";
+	std::string videoPath = R"(media/video.mp4)";
 
 	// 入出力するsqlファイルのフルパス
 	std::string sqlPath = videoPath + ".sqlite3";
