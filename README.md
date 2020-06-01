@@ -1,4 +1,4 @@
-# インストール方法
+# 使用方法
 ## 準備
 ### Visual Studio Community 2019のインストール
 既にインストールされている場合はこの手順は飛ばしてください。  
@@ -24,7 +24,20 @@
 次に、CUDA 10.1に対応するcuDNNをインストールします。  
 以下のURLよりダウンロード、インストールしてください。(アカウント登録が必要です)  
 [https://developer.nvidia.com/rdp/cudnn-download](https://developer.nvidia.com/rdp/cudnn-download)  
-## インストール
-```
-(作成中)
-```
+## 環境構築
+エクスプローラーでopenpose_extをダウンロードしたい場所を開きます。  
+次に、エクスプローラーのアドレスバーに`cmd`と入力します。  
+コマンドプロンプトが起動するので、`git clone https://github.com/wakewakame/openpose_ext`と入力し、エンターを押します。  
+これでopenpose_extのプログラムがダウンロードされます。  
+次に、コマンドプロンプトで以下のコマンドを続けて入力します  
+`cd openpose_ext` (openpose_extフォルダに移動)  
+`mkdir build` (buildフォルダの生成)  
+`cd build` (buildフォルダに移動)  
+`cmake ..` (openpose_extフォルダに対してCMakeを実行)  
+この`cmake ..`の処理には数十分から数時間ほどかかることがあります。  
+以上の処理が成功すると、openpose_extフォルダ内のbuildフォルダに`openpose_ext.sln`が生成されます。  
+## ビルド
+openpose_extフォルダ内のbuildフォルダに生成された`openpose_ext.sln`を開きます。  
+画面上部の`ローカル Windows デバッガー`を押し、ビルドを開始します。  
+ビルドが終わると、openpose_extが起動します。  
+動画ファイルを変更したい場合は、`openpose_ext/src/main.cpp`の`media/video.mp4`の箇所を適宜変更してください。  
