@@ -134,6 +134,54 @@ namespace vt
 		);
 		Vector4 translate(Vector4 p);
 		void drawAreaLine(cv::Mat& mat);
-		cv::Mat ScreenToGround::perspective(const cv::Mat& mat, float zoom = 1.0f);
+		cv::Mat ScreenToGround::perspective(const cv::Mat& src, float zoom = 1.0f);
+	};
+	class FisheyeToFlat {
+	private:
+		// カメラ内部パラメータ
+		cv::Mat cameraMatrix;
+		// 歪み補正パラメータ[k1, k2, k3, k4]
+		cv::Mat distCoeffs;
+		// カメラの解像度
+		double cam_width = 0.0, cam_height = 0.0;
+		// 入力画像の解像度
+		double input_width = 0.0, input_height = 0.0;
+		// キャリブレーション後のピクセルの移動位置を保持する配列
+		cv::Mat map1, map2;
+
+	public:
+		FisheyeToFlat() {}
+		virtual ~FisheyeToFlat() {}
+		void setParams(
+			double width, double height,
+			double f1, double f2, double c1, double c2,
+			double k1 = 0.0, double k2 = 0.0, double k3 = 0.0, double k4 = 0.0
+		) {
+			cam_width = width;
+			cam_height = height;
+			cameraMatrix = (cv::Mat_<float>(3, 3) << f1, 0.0, c1, 0.0, f2, c2, 0.0, 0.0, 1.0);
+			distCoeffs = (cv::Mat_<float>(1, 4) << 0.0f, 0.0f, 0.0f, 0.0f);
+		}
+		//Vector4 translate(Vector4 p) {
+
+		//}
+		cv::Mat calibrate(const cv::Mat& src, float zoom = 1.0) {
+			cv::Mat dst = cv::Mat::zeros(src.rows, src.cols, src.type());
+			if (input_width != (double)(src.cols) || input_height != (double)(src.rows)) {
+				input_width = (double)(src.cols);
+				input_height = (double)(src.rows);
+				cv::Mat inputCameraMatrix = cameraMatrix * input_width / cam_width;
+				inputCameraMatrix.at<float>(2, 2) = 1.0;
+				cv::Mat outputCameraMatrix = inputCameraMatrix.clone();
+				outputCameraMatrix.at<float>(0, 0) *= zoom;
+				outputCameraMatrix.at<float>(1, 1) *= zoom;
+				cv::fisheye::initUndistortRectifyMap(
+					inputCameraMatrix, distCoeffs, cv::Matx33d::eye(),
+					outputCameraMatrix, src.size(), CV_16SC2, map1, map2
+				);
+			}
+			cv::remap(src, dst, map1, map2, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+			return dst;
+		}
 	};
 };

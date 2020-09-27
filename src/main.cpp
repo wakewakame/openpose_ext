@@ -14,6 +14,7 @@ private:
 	std::shared_ptr<TrackingOpenPoseEvent> tracker;
 	std::shared_ptr<SqlOpenPoseEvent> sql;
 	std::shared_ptr<PreviewOpenPoseEvent> preview;
+	vt::FisheyeToFlat fisheyeToFlat;
 	vt::ScreenToGround screenToGround;
 	cv::Point mouse;
 	int previewMode;
@@ -52,18 +53,12 @@ public:
 		if (checkError()) return 1;
 
 		// カメラキャリブレーション
-		cv::Mat cameraMatrix = (cv::Mat_<float>(3, 3) << 1196.5005496684155, 0.0, 934.7093209308073, 0.0, 1195.717540833521, 566.6897424674246, 0.0, 0.0, 1.0);
-		cv::Mat cameraMatrix1 = cameraMatrix * (float)(imageInfo.outputImage.cols) / 1858.0f;
-		cameraMatrix1.at<cv::Vec3b>(2, 2) = 1.0;
-		cv::Mat cameraMatrix2 = cameraMatrix1.clone();
-		const float zoom = 0.5f;
-		cameraMatrix2.at<float>(0, 0) *= zoom;
-		cameraMatrix2.at<float>(1, 1) *= zoom;
-		cv::Mat distCoeffs = (cv::Mat_<float>(1, 4) << 0.0f, 0.0f, 0.0f, 0.0f);
-		cv::fisheye::undistortImage(
-			imageInfo.outputImage, imageInfo.outputImage,
-			cameraMatrix1, distCoeffs, cameraMatrix2
+		fisheyeToFlat.setParams(
+			1858.0, 1044.0,
+			1196.5005496684155, 1195.717540833521, 934.7093209308073, 566.6897424674246,
+			0.0, 0.0, 0.0, 0.0
 		);
+		imageInfo.outputImage = fisheyeToFlat.calibrate(imageInfo.outputImage, 0.5f);
 
 		// 射影変換
 		screenToGround.setParams(
