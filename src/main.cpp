@@ -51,13 +51,27 @@ public:
 	{
 		if (checkError()) return 1;
 
+		// カメラキャリブレーション
+		cv::Mat cameraMatrix = (cv::Mat_<float>(3, 3) << 1196.5005496684155, 0.0, 934.7093209308073, 0.0, 1195.717540833521, 566.6897424674246, 0.0, 0.0, 1.0);
+		cv::Mat cameraMatrix1 = cameraMatrix * (float)(imageInfo.outputImage.cols) / 1858.0f;
+		cameraMatrix1.at<cv::Vec3b>(2, 2) = 1.0;
+		cv::Mat cameraMatrix2 = cameraMatrix1.clone();
+		const float zoom = 0.5f;
+		cameraMatrix2.at<float>(0, 0) *= zoom;
+		cameraMatrix2.at<float>(1, 1) *= zoom;
+		cv::Mat distCoeffs = (cv::Mat_<float>(1, 4) << 0.0f, 0.0f, 0.0f, 0.0f);
+		cv::fisheye::undistortImage(
+			imageInfo.outputImage, imageInfo.outputImage,
+			cameraMatrix1, distCoeffs, cameraMatrix2
+		);
+
 		// 射影変換
 		screenToGround.setParams(
 			imageInfo.outputImage.cols, imageInfo.outputImage.rows, 33.3, 6.3,
-			492, 436,
-			863, 946,
-			1335, 644,
-			905, 242
+			799, 525,
+			1216, 452,
+			1278, 795,
+			700, 776
 		);
 		screenToGround.drawAreaLine(imageInfo.outputImage);  // 射影変換に使用する4点の範囲を描画
 		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage, 0.3f); // プレビュー
@@ -156,7 +170,8 @@ int main(int argc, char* argv[])
 
 
 	// 入力する映像ファイルのフルパス
-	std::string videoPath = R"(media/video.mp4)";
+	std::string videoPath = R"(C:\Users\0214t\Downloads\calib\test\video\out.mp4)";
+	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
 	std::string sqlPath = videoPath + ".sqlite3";
@@ -173,7 +188,7 @@ int main(int argc, char* argv[])
 	auto tracker = mop.addEventListener<TrackingOpenPoseEvent>(sql);
 
 	// 人数カウント処理の追加
-	(void)mop.addEventListener<PeopleCounterOpenPoseEvent>(tracker, 579, 578, 1429, 577, 100.0, true);
+	//(void)mop.addEventListener<PeopleCounterOpenPoseEvent>(tracker, 579, 578, 1429, 577, 100.0, true);
 
 	// 出力画像に骨格情報などを描画する処理の追加
 	(void)mop.addEventListener<PlotInfoOpenPoseEvent>(true, true, false);
