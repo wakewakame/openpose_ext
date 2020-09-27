@@ -45,6 +45,13 @@ public:
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"people", false)) return 1;
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", u8"people", true)) return 1;
 
+		// カメラキャリブレーションの設定
+		fisheyeToFlat.setParams(
+			1858.0, 1044.0, 0.5f,
+			1196.5005496684155, 1195.717540833521, 934.7093209308073, 566.6897424674246,
+			0.0, 0.0, 0.0, 0.0
+		);
+
 		return 0;
 	}
 	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final { return 0; }
@@ -53,20 +60,23 @@ public:
 		if (checkError()) return 1;
 
 		// カメラキャリブレーション
-		fisheyeToFlat.setParams(
-			1858.0, 1044.0,
-			1196.5005496684155, 1195.717540833521, 934.7093209308073, 566.6897424674246,
-			0.0, 0.0, 0.0, 0.0
-		);
-		imageInfo.outputImage = fisheyeToFlat.calibrate(imageInfo.outputImage, 0.5f);
+		imageInfo.outputImage = fisheyeToFlat.calibrate(imageInfo.outputImage);
 
 		// 射影変換
 		screenToGround.setParams(
 			imageInfo.outputImage.cols, imageInfo.outputImage.rows, 33.3, 6.3,
-			799, 525,
-			1216, 452,
-			1278, 795,
-			700, 776
+			//799, 525,
+			//1216, 452,
+			//1278, 795,
+			//700, 776
+			//370, 176,
+			//558, 251,
+			//473, 516,
+			//333, 482
+			335, 179,
+			639, 295,
+			566, 464,
+			313, 393
 		);
 		screenToGround.drawAreaLine(imageInfo.outputImage);  // 射影変換に使用する4点の範囲を描画
 		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage, 0.3f); // プレビュー
@@ -78,7 +88,8 @@ public:
 			for (auto&& currentPerson = tracker->latestPeople.begin(); currentPerson != tracker->latestPeople.end(); currentPerson++)
 			{
 				auto&& position = TrackingOpenPoseEvent::getJointAverage(currentPerson->second);
-				auto normal = screenToGround.translate(vt::Vector4{ position.x, position.y });
+				auto calib = fisheyeToFlat.translate(vt::Vector4{ position.x, position.y }, imageInfo.outputImage);
+				auto normal = screenToGround.translate(calib);
 				if (sql->bindAllAndExec(insertQuery, imageInfo.frameNumber, currentPerson->first, normal.x, normal.y)) return 1;
 			}
 		}
@@ -165,7 +176,8 @@ int main(int argc, char* argv[])
 
 
 	// 入力する映像ファイルのフルパス
-	std::string videoPath = R"(C:\Users\0214t\Downloads\calib\test\video\out.mp4)";
+	//std::string videoPath = R"(C:\Users\0214t\Downloads\calib\test\video\out.mp4)";
+	std::string videoPath = R"(G:\Videos\2020-08-17\guest002-2020-08-17_09-36-37.mp4)";
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
@@ -183,7 +195,7 @@ int main(int argc, char* argv[])
 	auto tracker = mop.addEventListener<TrackingOpenPoseEvent>(sql);
 
 	// 人数カウント処理の追加
-	//(void)mop.addEventListener<PeopleCounterOpenPoseEvent>(tracker, 579, 578, 1429, 577, 100.0, true);
+	(void)mop.addEventListener<PeopleCounterOpenPoseEvent>(tracker, 579, 578, 1429, 577, 100.0, true);
 
 	// 出力画像に骨格情報などを描画する処理の追加
 	(void)mop.addEventListener<PlotInfoOpenPoseEvent>(true, true, false);

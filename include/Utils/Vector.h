@@ -146,39 +146,59 @@ namespace vt
 		double cam_width = 0.0, cam_height = 0.0;
 		// 入力画像の解像度
 		double input_width = 0.0, input_height = 0.0;
+		// 出力画像の拡大率
+		double output_scale = 0.0;
 		// キャリブレーション後のピクセルの移動位置を保持する配列
 		cv::Mat map1, map2;
+		// パラメータ変更フラグ
+		bool change_param = false;
 
 	public:
 		FisheyeToFlat() {}
 		virtual ~FisheyeToFlat() {}
 		void setParams(
-			double width, double height,
+			double cam_width, double cam_height, double output_scale,
 			double f1, double f2, double c1, double c2,
 			double k1 = 0.0, double k2 = 0.0, double k3 = 0.0, double k4 = 0.0
 		) {
-			cam_width = width;
-			cam_height = height;
+			this->cam_width = cam_width;
+			this->cam_height = cam_height;
+			this->output_scale = output_scale;
 			cameraMatrix = (cv::Mat_<float>(3, 3) << f1, 0.0, c1, 0.0, f2, c2, 0.0, 0.0, 1.0);
 			distCoeffs = (cv::Mat_<float>(1, 4) << 0.0f, 0.0f, 0.0f, 0.0f);
+			change_param = true;
 		}
-		//Vector4 translate(Vector4 p) {
-
-		//}
-		cv::Mat calibrate(const cv::Mat& src, float zoom = 1.0) {
+		Vector4 translate(Vector4 p, const cv::Mat& src) {
+			cv::Mat p_src = (cv::Mat_<cv::Vec2d>(1, 1) << cv::Vec2d(p.x, p.y));
+			cv::Mat p_dst(1, 1, CV_64FC2);
+			double input_width = (double)(src.cols);
+			double input_height = (double)(src.rows);
+			cv::Mat inputCameraMatrix = cameraMatrix * input_width / cam_width;
+			inputCameraMatrix.at<float>(2, 2) = 1.0;
+			cv::Mat outputCameraMatrix = inputCameraMatrix.clone();
+			outputCameraMatrix.at<float>(0, 0) *= output_scale;
+			outputCameraMatrix.at<float>(1, 1) *= output_scale;
+			cv::fisheye::undistortPoints(
+				p_src, p_dst, inputCameraMatrix, distCoeffs, cv::Matx33d::eye(), outputCameraMatrix
+			);
+			cv::Vec2d result = p_dst.at<cv::Vec2d>(0, 0);
+			return Vector4(result[0], result[1]);
+		}
+		cv::Mat calibrate(const cv::Mat& src) {
 			cv::Mat dst = cv::Mat::zeros(src.rows, src.cols, src.type());
-			if (input_width != (double)(src.cols) || input_height != (double)(src.rows)) {
+			if (input_width != (double)(src.cols) || input_height != (double)(src.rows) || change_param) {
 				input_width = (double)(src.cols);
 				input_height = (double)(src.rows);
 				cv::Mat inputCameraMatrix = cameraMatrix * input_width / cam_width;
 				inputCameraMatrix.at<float>(2, 2) = 1.0;
 				cv::Mat outputCameraMatrix = inputCameraMatrix.clone();
-				outputCameraMatrix.at<float>(0, 0) *= zoom;
-				outputCameraMatrix.at<float>(1, 1) *= zoom;
+				outputCameraMatrix.at<float>(0, 0) *= output_scale;
+				outputCameraMatrix.at<float>(1, 1) *= output_scale;
 				cv::fisheye::initUndistortRectifyMap(
 					inputCameraMatrix, distCoeffs, cv::Matx33d::eye(),
 					outputCameraMatrix, src.size(), CV_16SC2, map1, map2
 				);
+				change_param = false;
 			}
 			cv::remap(src, dst, map1, map2, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
 			return dst;
