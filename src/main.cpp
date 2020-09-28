@@ -73,10 +73,7 @@ public:
 			478, 292
 		);
 		
-		if (previewMode == 1) imageInfo.outputImage = screenToGround.onlyFlatMat(imageInfo.outputImage); // プレビュー
-		if (previewMode == 2) imageInfo.outputImage = screenToGround.translateMat(imageInfo.outputImage, 0.3f); // プレビュー
-
-		screenToGround.drawAreaLine(imageInfo.outputImage, previewMode);  // 射影変換に使用する4点の範囲を描画
+		if (previewMode == 1) imageInfo.outputImage = screenToGround.translateMat(imageInfo.outputImage, 0.3f);  // 変形
 
 		// people_with_normalized_trackingテーブルの更新
 		if (!sql->isDataExist("people_with_normalized_tracking", "frame", imageInfo.frameNumber))
@@ -147,7 +144,7 @@ public:
 
 				// Aキーで画面表示切替
 			case 'a':
-				previewMode = (previewMode + 1) % 3;
+				previewMode = (previewMode + 1) % 2;
 				break;
 
 				// スペースキーで動画の再生/一時停止

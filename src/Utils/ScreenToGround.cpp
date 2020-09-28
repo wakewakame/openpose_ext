@@ -191,11 +191,10 @@ namespace vt
 		cv::Mat r_mat = cv::getPerspectiveTransform(srcPoint, dstPoint);
 
 		//ê}å`ïœä∑èàóù
-		cv::Mat dst1 = fisheyeToFlat.translateMat(src);
-		cv::Mat dst2 = cv::Mat::zeros(src.rows, src.cols, src.type());
-		cv::warpPerspective(dst1, dst2, r_mat, dst2.size(), cv::INTER_LINEAR);
+		cv::Mat dst = fisheyeToFlat.translateMat(src);
+		cv::warpPerspective(dst, dst, r_mat, dst.size(), cv::INTER_LINEAR);
 
-		return dst2;
+		return dst;
 	}
 	Vector4 ScreenToGround::onlyFlat(Vector4 p) {
 		return fisheyeToFlat.translate(p, cam_w, cam_h);
