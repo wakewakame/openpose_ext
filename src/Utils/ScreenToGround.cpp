@@ -80,10 +80,6 @@ namespace vt
 	{
 		// 魚眼レンズの歪み補正を考慮した垂直画角を計算
 		cam_h_fov_tmp = fisheyeToFlat.calcCamHFov(cam_h_fov_tmp, cam_w_tmp, cam_h_tmp);
-		p1_tmp = fisheyeToFlat.translate(p1_tmp, cam_w_tmp, cam_h_tmp);
-		p2_tmp = fisheyeToFlat.translate(p2_tmp, cam_w_tmp, cam_h_tmp);
-		p3_tmp = fisheyeToFlat.translate(p3_tmp, cam_w_tmp, cam_h_tmp);
-		p4_tmp = fisheyeToFlat.translate(p4_tmp, cam_w_tmp, cam_h_tmp);
 		
 		// パラメータに変更がなければ計算を行わないようにする
 		if (
@@ -91,17 +87,21 @@ namespace vt
 			(cam_h != cam_h_tmp) ||
 			(cam_h_fov != cam_h_fov_tmp) ||
 			(cam_pos_h != cam_pos_h_tmp) ||
-			(p1 != p1_tmp) ||
-			(p2 != p2_tmp) ||
-			(p3 != p3_tmp) ||
-			(p4 != p4_tmp)
+			(p1_ != p1_tmp) ||
+			(p2_ != p2_tmp) ||
+			(p3_ != p3_tmp) ||
+			(p4_ != p4_tmp)
 			)
 		{
 			cam_w = cam_w_tmp;
 			cam_h = cam_h_tmp;
 			cam_h_fov = cam_h_fov_tmp;
 			cam_pos_h = cam_pos_h_tmp;
-			p1 = p1_tmp; p2 = p2_tmp; p3 = p3_tmp; p4 = p4_tmp;
+			p1_ = p1_tmp; p2_ = p2_tmp; p3_ = p3_tmp; p4_ = p4_tmp;
+			p1 = fisheyeToFlat.translate(p1_, cam_w, cam_h);
+			p2 = fisheyeToFlat.translate(p2_, cam_w, cam_h);
+			p3 = fisheyeToFlat.translate(p3_, cam_w, cam_h);
+			p4 = fisheyeToFlat.translate(p4_, cam_w, cam_h);
 			calcParams();
 		}
 	}
@@ -123,9 +123,10 @@ namespace vt
 			cam_width, cam_heigth, output_scale, fx, fy, cx, cy, k1, k2, k3, k4
 		);
 	}
-	Vector4 ScreenToGround::translate(Vector4 p, bool to_flat)
+	Vector4 ScreenToGround::translate(Vector4 p)
 	{
-		if (to_flat) p = fisheyeToFlat.translate(p, cam_w, cam_h);
+		// 魚眼レンズによる歪み修正
+		p = fisheyeToFlat.translate(p, cam_w, cam_h);
 		// 画面上の座標pをマーカー座標に変換
 		Vector4 m_p_pos = Vector4::cross(r2, Vector4(p.x - cam_w / 2.0, p.y - cam_h / 2.0, cam_l));
 		// m_cam_pos から m_p_pos へのベクトル
@@ -138,33 +139,35 @@ namespace vt
 		Vector4 p_p_pos_m = p_p_pos * cam_pos_h / m_cam_h;
 		return Vector4(p_p_pos_m.x, p_p_pos_m.z);
 	}
-	void ScreenToGround::drawAreaLine(cv::Mat& mat)
+	void ScreenToGround::drawAreaLine(cv::Mat& mat, uint8_t mode)
 	{
-		cv::circle(mat, cv::Point(p1.x, p1.y), 5, cv::Scalar(255, 0, 0), -1);
-		cv::circle(mat, cv::Point(p2.x, p2.y), 5, cv::Scalar(255, 0, 0), -1);
-		cv::circle(mat, cv::Point(p3.x, p3.y), 5, cv::Scalar(255, 0, 0), -1);
-		cv::circle(mat, cv::Point(p4.x, p4.y), 5, cv::Scalar(255, 0, 0), -1);
-		cv::line(mat, { (int)p1.x, (int)p1.y }, { (int)p2.x, (int)p2.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
-		cv::line(mat, { (int)p2.x, (int)p2.y }, { (int)p3.x, (int)p3.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
-		cv::line(mat, { (int)p3.x, (int)p3.y }, { (int)p4.x, (int)p4.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
-		cv::line(mat, { (int)p4.x, (int)p4.y }, { (int)p1.x, (int)p1.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
+		Vector4 a1, a2, a3, a4;
+		if (mode == 0) { a1 = p1_; a2 = p2_; a3 = p3_; a4 = p4_; }
+		if (mode == 1) { a1 = p1; a2 = p2; a3 = p3; a4 = p4; }
+		cv::circle(mat, cv::Point(a1.x, a1.y), 5, cv::Scalar(255, 0, 0), -1);
+		cv::circle(mat, cv::Point(a2.x, a2.y), 5, cv::Scalar(255, 0, 0), -1);
+		cv::circle(mat, cv::Point(a3.x, a3.y), 5, cv::Scalar(255, 0, 0), -1);
+		cv::circle(mat, cv::Point(a4.x, a4.y), 5, cv::Scalar(255, 0, 0), -1);
+		cv::line(mat, { (int)a1.x, (int)a1.y }, { (int)a2.x, (int)a2.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
+		cv::line(mat, { (int)a2.x, (int)a2.y }, { (int)a3.x, (int)a3.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
+		cv::line(mat, { (int)a3.x, (int)a3.y }, { (int)a4.x, (int)a4.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
+		cv::line(mat, { (int)a4.x, (int)a4.y }, { (int)a1.x, (int)a1.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
 	}
 	cv::Mat ScreenToGround::translateMat(const cv::Mat& src, float zoom)
 	{
 		// 指定した4点のスクリーン座標と現実の座標
 		std::vector<cv::Point2f> srcPoint{ p1, p2, p3, p4 };
-		std::vector<cv::Point2f> dstPoint;
+		std::vector<cv::Point2f> dstPoint{ p1_, p2_, p3_, p4_ };
 
 		// 指定した4点の現実の座標をdstPointに代入し、同時にx軸、y軸の最大値と最小値を取得
 		cv::Point2f min(FLT_MAX, FLT_MAX), max(FLT_MIN, FLT_MIN);
-		for (int i = 0; i < srcPoint.size(); i++)
+		for (auto&& d : dstPoint)
 		{
-			const cv::Point2f p = translate(srcPoint[i], false);
-			dstPoint.push_back(p);
-			min.x = (p.x < min.x) ? p.x : min.x;
-			min.y = (p.y < min.y) ? p.y : min.y;
-			max.x = (p.x > max.x) ? p.x : max.x;
-			max.y = (p.y > max.y) ? p.y : max.y;
+			d = translate(d);
+			min.x = (d.x < min.x) ? d.x : min.x;
+			min.y = (d.y < min.y) ? d.y : min.y;
+			max.x = (d.x > max.x) ? d.x : max.x;
+			max.y = (d.y > max.y) ? d.y : max.y;
 		}
 
 		// 現実座標の値が画面に丁度収まるように拡大縮小、移動

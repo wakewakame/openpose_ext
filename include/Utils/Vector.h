@@ -147,7 +147,8 @@ namespace vt
 		double cam_w, cam_h;  // カメラの解像度
 		double cam_h_fov;  // カメラの垂直画角(deg)
 		double cam_pos_h;  // カメラの地面からの高さ(m)
-		Vector4 p1, p2, p3, p4;  // スクリーン座標(1点目, 2点目, 3点目, 4点目)
+		Vector4 p1_, p2_, p3_, p4_;  // カメラキャリブレーション前のスクリーン座標(1点目, 2点目, 3点目, 4点目)
+		Vector4 p1, p2, p3, p4;  // カメラキャリブレーション後のスクリーン座標(1点目, 2点目, 3点目, 4点目)
 		FisheyeToFlat fisheyeToFlat;  // 魚眼レンズの歪み補正を行うクラス
 
 		// 計算により求まるパラメーター
@@ -173,8 +174,8 @@ namespace vt
 			double cam_width, double cam_heigth, double output_scale,
 			double fx, double fy, double cx, double cy, double k1, double k2, double k3, double k4
 		);
-		Vector4 translate(Vector4 p, bool to_flat = true);
-		void drawAreaLine(cv::Mat& mat);
+		Vector4 translate(Vector4 p);
+		void drawAreaLine(cv::Mat& mat, uint8_t mode);
 		cv::Mat ScreenToGround::translateMat(const cv::Mat& src, float zoom = 1.0f);
 		Vector4 ScreenToGround::onlyFlat(Vector4 p);
 		cv::Mat ScreenToGround::onlyFlatMat(const cv::Mat& src);

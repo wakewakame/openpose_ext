@@ -45,15 +45,9 @@ public:
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", u8"people", true)) return 1;
 
 		// カメラキャリブレーションの設定
-		//fisheyeToFlat.setParams(
-		//	1858.0, 1044.0, 0.5,  // カメラキャリブレーションに用いた画像の解像度(w, h), 出力画像の拡大率
-		//	1057, 1057, 935, 567,  // カメラ内部パラメータの焦点距離と中心座標(fx, fy, cx, cy)
-		//	0.0, 0.0, 0.0, 0.0  // カメラの歪み係数(k1, k2, k3, k4)
-		//);
-		// カメラキャリブレーションの設定
 		screenToGround.setCalibration(
-			1280, 960, 0.5,  // カメラキャリブレーションに用いた画像の解像度(w, h), 出力画像の拡大率
-			481, 481, 640, 480,  // カメラ内部パラメータの焦点距離と中心座標(fx, fy, cx, cy)
+			1858.0, 1044.0, 0.5,  // カメラキャリブレーションに用いた画像の解像度(w, h), 出力画像の拡大率
+			1057, 1057, 935, 567,  // カメラ内部パラメータの焦点距離と中心座標(fx, fy, cx, cy)
 			0.0, 0.0, 0.0, 0.0  // カメラの歪み係数(k1, k2, k3, k4)
 		);
 
@@ -64,51 +58,25 @@ public:
 	{
 		if (checkError()) return 1;
 
-		video->pause();
-
 		// カメラの垂直画角
 		double cam_h_fov = 112;
 
 		// 複製
 		imageInfo.outputImage = imageInfo.outputImage.clone();
 
-		// カメラキャリブレーション
-		//if (previewMode >= 1) imageInfo.outputImage = fisheyeToFlat.translateMat(imageInfo.outputImage);
-		//cam_h_fov = fisheyeToFlat.calcCamHFov(cam_h_fov, imageInfo.outputImage);
-
 		// 射影変換
-		//screenToGround.setParams(
-		//	imageInfo.outputImage.cols, imageInfo.outputImage.rows, cam_h_fov, 6.3,
-		//	694, 782,
-		//	1291, 807,
-		//	1221, 450,
-		//	799, 525
-		//);
 		screenToGround.setParams(
-			imageInfo.outputImage.cols, imageInfo.outputImage.rows, cam_h_fov, 0.835,
-			291, 508,
-			777, 899,
-			980, 579,
-			527, 390
+			imageInfo.outputImage.cols, imageInfo.outputImage.rows, cam_h_fov, 6.3,
+			346, 659,
+			1056, 668,
+			990, 202,
+			478, 292
 		);
 		
 		if (previewMode == 1) imageInfo.outputImage = screenToGround.onlyFlatMat(imageInfo.outputImage); // プレビュー
 		if (previewMode == 2) imageInfo.outputImage = screenToGround.translateMat(imageInfo.outputImage, 0.3f); // プレビュー
 
-		//screenToGround.drawAreaLine(imageInfo.outputImage, 0);  // 射影変換に使用する4点の範囲を描画
-		//screenToGround.drawAreaLine(imageInfo.outputImage, 1);  // 射影変換に使用する4点の範囲を描画
-		//screenToGround.drawAreaLine(imageInfo.outputImage, 2);  // 射影変換に使用する4点の範囲を描画
-
-		screenToGround.translate({ 291, 508 }).print();
-		screenToGround.translate({ 777, 899 }).print();
-		screenToGround.translate({ 980, 579 }).print();
-		screenToGround.translate({ 527, 390 }).print();
-		std::cout << "===" << std::endl;
-
-		auto m = vt::Vector4(980, 579);
-		if (previewMode == 1) m = screenToGround.onlyFlat(m);
-		if (previewMode == 2) m = screenToGround.translate(m);
-		gui::text(imageInfo.outputImage, std::to_string(m.x) + ", " + std::to_string(m.y), mouse, gui::LEFT_TOP, 1);
+		screenToGround.drawAreaLine(imageInfo.outputImage, previewMode);  // 射影変換に使用する4点の範囲を描画
 
 		// people_with_normalized_trackingテーブルの更新
 		if (!sql->isDataExist("people_with_normalized_tracking", "frame", imageInfo.frameNumber))
@@ -204,9 +172,7 @@ int main(int argc, char* argv[])
 
 
 	// 入力する映像ファイルのフルパス
-	//std::string videoPath = R"(C:\Users\0214t\Downloads\calib\test\video\out.mp4)";
-	std::string videoPath = R"(C:\Users\0214t\Downloads\Gmail\3.JPG)";
-	//std::string videoPath = R"(C:\Users\0214t\Downloads\guest002-2020-08-17_09-36-37.mp4)";
+	std::string videoPath = R"(media\checker.mp4)";
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
