@@ -14,7 +14,6 @@ private:
 	std::shared_ptr<TrackingOpenPoseEvent> tracker;
 	std::shared_ptr<SqlOpenPoseEvent> sql;
 	std::shared_ptr<PreviewOpenPoseEvent> preview;
-	vt::FisheyeToFlat fisheyeToFlat;
 	vt::ScreenToGround screenToGround;
 	cv::Point mouse;
 	int previewMode;
@@ -46,10 +45,16 @@ public:
 		if (sql->createIndexIfNoExist(u8"people_with_normalized_tracking", u8"frame", u8"people", true)) return 1;
 
 		// カメラキャリブレーションの設定
-		fisheyeToFlat.setParams(
-			1858.0, 1044.0, 0.5f,
-			1196.5005496684155, 1195.717540833521, 934.7093209308073, 566.6897424674246,
-			0.0, 0.0, 0.0, 0.0
+		//fisheyeToFlat.setParams(
+		//	1858.0, 1044.0, 0.5,  // カメラキャリブレーションに用いた画像の解像度(w, h), 出力画像の拡大率
+		//	1057, 1057, 935, 567,  // カメラ内部パラメータの焦点距離と中心座標(fx, fy, cx, cy)
+		//	0.0, 0.0, 0.0, 0.0  // カメラの歪み係数(k1, k2, k3, k4)
+		//);
+		// カメラキャリブレーションの設定
+		screenToGround.setCalibration(
+			1280, 960, 0.5,  // カメラキャリブレーションに用いた画像の解像度(w, h), 出力画像の拡大率
+			481, 481, 640, 480,  // カメラ内部パラメータの焦点距離と中心座標(fx, fy, cx, cy)
+			0.0, 0.0, 0.0, 0.0  // カメラの歪み係数(k1, k2, k3, k4)
 		);
 
 		return 0;
@@ -59,27 +64,51 @@ public:
 	{
 		if (checkError()) return 1;
 
+		video->pause();
+
+		// カメラの垂直画角
+		double cam_h_fov = 112;
+
+		// 複製
+		imageInfo.outputImage = imageInfo.outputImage.clone();
+
 		// カメラキャリブレーション
-		imageInfo.outputImage = fisheyeToFlat.calibrate(imageInfo.outputImage);
+		//if (previewMode >= 1) imageInfo.outputImage = fisheyeToFlat.translateMat(imageInfo.outputImage);
+		//cam_h_fov = fisheyeToFlat.calcCamHFov(cam_h_fov, imageInfo.outputImage);
 
 		// 射影変換
+		//screenToGround.setParams(
+		//	imageInfo.outputImage.cols, imageInfo.outputImage.rows, cam_h_fov, 6.3,
+		//	694, 782,
+		//	1291, 807,
+		//	1221, 450,
+		//	799, 525
+		//);
 		screenToGround.setParams(
-			imageInfo.outputImage.cols, imageInfo.outputImage.rows, 33.3, 6.3,
-			//799, 525,
-			//1216, 452,
-			//1278, 795,
-			//700, 776
-			//370, 176,
-			//558, 251,
-			//473, 516,
-			//333, 482
-			335, 179,
-			639, 295,
-			566, 464,
-			313, 393
+			imageInfo.outputImage.cols, imageInfo.outputImage.rows, cam_h_fov, 0.835,
+			291, 508,
+			777, 899,
+			980, 579,
+			527, 390
 		);
-		screenToGround.drawAreaLine(imageInfo.outputImage);  // 射影変換に使用する4点の範囲を描画
-		if (previewMode == 1) imageInfo.outputImage = screenToGround.perspective(imageInfo.outputImage, 0.3f); // プレビュー
+		
+		if (previewMode == 1) imageInfo.outputImage = screenToGround.onlyFlatMat(imageInfo.outputImage); // プレビュー
+		if (previewMode == 2) imageInfo.outputImage = screenToGround.translateMat(imageInfo.outputImage, 0.3f); // プレビュー
+
+		//screenToGround.drawAreaLine(imageInfo.outputImage, 0);  // 射影変換に使用する4点の範囲を描画
+		//screenToGround.drawAreaLine(imageInfo.outputImage, 1);  // 射影変換に使用する4点の範囲を描画
+		//screenToGround.drawAreaLine(imageInfo.outputImage, 2);  // 射影変換に使用する4点の範囲を描画
+
+		screenToGround.translate({ 291, 508 }).print();
+		screenToGround.translate({ 777, 899 }).print();
+		screenToGround.translate({ 980, 579 }).print();
+		screenToGround.translate({ 527, 390 }).print();
+		std::cout << "===" << std::endl;
+
+		auto m = vt::Vector4(980, 579);
+		if (previewMode == 1) m = screenToGround.onlyFlat(m);
+		if (previewMode == 2) m = screenToGround.translate(m);
+		gui::text(imageInfo.outputImage, std::to_string(m.x) + ", " + std::to_string(m.y), mouse, gui::LEFT_TOP, 1);
 
 		// people_with_normalized_trackingテーブルの更新
 		if (!sql->isDataExist("people_with_normalized_tracking", "frame", imageInfo.frameNumber))
@@ -88,8 +117,7 @@ public:
 			for (auto&& currentPerson = tracker->latestPeople.begin(); currentPerson != tracker->latestPeople.end(); currentPerson++)
 			{
 				auto&& position = TrackingOpenPoseEvent::getJointAverage(currentPerson->second);
-				auto calib = fisheyeToFlat.translate(vt::Vector4{ position.x, position.y }, imageInfo.outputImage);
-				auto normal = screenToGround.translate(calib);
+				auto normal = screenToGround.translate(vt::Vector4{ position.x, position.y });
 				if (sql->bindAllAndExec(insertQuery, imageInfo.frameNumber, currentPerson->first, normal.x, normal.y)) return 1;
 			}
 		}
@@ -115,56 +143,56 @@ public:
 		preview->addMouseEventListener([&](int event, int x, int y) {
 			switch (event)
 			{
-			// マウス移動時
+				// マウス移動時
 			case cv::EVENT_MOUSEMOVE:
 				mouse.x = x; mouse.y = y;
 				break;
 
-			// 左クリック時
+				// 左クリック時
 			case cv::EVENT_LBUTTONDOWN:
 				std::cout << x << ", " << y << std::endl;
 				break;
 
-			// 右クリック時
+				// 右クリック時
 			case cv::EVENT_RBUTTONDOWN:
 				break;
 
-			// その他
+				// その他
 			default:
 				break;
 			}
-		});
+			});
 
 		// キーイベント処理
 		preview->addKeyboardEventListener([&](int key) {
 			switch (key)
 			{
-			// Jキーで30フレーム戻る
+				// Jキーで30フレーム戻る
 			case 'j':
 				video->seekRelative(-30);
 				break;
 
-			// Kキーで30フレーム進む
+				// Kキーで30フレーム進む
 			case 'k':
 				video->seekRelative(30);
 				break;
 
-			// Aキーで画面表示切替
+				// Aキーで画面表示切替
 			case 'a':
-				previewMode = (previewMode + 1) % 2;
+				previewMode = (previewMode + 1) % 3;
 				break;
 
-			// スペースキーで動画の再生/一時停止
+				// スペースキーで動画の再生/一時停止
 			case 32:
 				if (video->isPlay()) video->pause();
 				else video->play();
 				break;
 
-			// その他
+				// その他
 			default:
 				break;
 			}
-		});
+			});
 	}
 };
 
@@ -177,7 +205,8 @@ int main(int argc, char* argv[])
 
 	// 入力する映像ファイルのフルパス
 	//std::string videoPath = R"(C:\Users\0214t\Downloads\calib\test\video\out.mp4)";
-	std::string videoPath = R"(G:\Videos\2020-08-17\guest002-2020-08-17_09-36-37.mp4)";
+	std::string videoPath = R"(C:\Users\0214t\Downloads\Gmail\3.JPG)";
+	//std::string videoPath = R"(C:\Users\0214t\Downloads\guest002-2020-08-17_09-36-37.mp4)";
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
@@ -217,9 +246,9 @@ int main(int argc, char* argv[])
 	auto start = std::chrono::high_resolution_clock::now();
 	int ret = mop.startup();
 	double time = (1.0 / 1000.0) * (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-	
-	
-	
+
+
+
 	// 起動から終了までに要した時間の表示
 	std::cout << "time score : " << time << " sec." << std::endl;
 
