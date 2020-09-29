@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
 
 
 	// 入力する映像ファイルのフルパス
-	std::string videoPath = R"(media\checker.mp4)";
+	std::string videoPath = R"(media/video.mp4)";
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
