@@ -11,7 +11,7 @@ namespace vt
 		double fx, double fy, double cx, double cy,
 		double k1, double k2, double k3, double k4
 	) {
-		is_init = true;
+		//is_init = true;
 		this->cam_width = cam_width;
 		this->cam_height = cam_height;
 		this->output_scale = output_scale;

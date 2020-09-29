@@ -153,7 +153,7 @@ namespace vt
 		cv::line(mat, { (int)a3.x, (int)a3.y }, { (int)a4.x, (int)a4.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
 		cv::line(mat, { (int)a4.x, (int)a4.y }, { (int)a1.x, (int)a1.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
 	}
-	cv::Mat ScreenToGround::translateMat(const cv::Mat& src, float zoom)
+	cv::Mat ScreenToGround::translateMat(const cv::Mat& src, float zoom, bool drawLine)
 	{
 		// 指定した4点のスクリーン座標と現実の座標
 		std::vector<cv::Point2f> srcPoint{ p1, p2, p3, p4 };
@@ -193,6 +193,18 @@ namespace vt
 		//図形変換処理
 		cv::Mat dst = fisheyeToFlat.translateMat(src);
 		cv::warpPerspective(dst, dst, r_mat, dst.size(), cv::INTER_LINEAR);
+
+		if (drawLine) {
+			Vector4 a1(dstPoint[0]), a2(dstPoint[1]), a3(dstPoint[2]), a4(dstPoint[3]);
+			cv::circle(dst, cv::Point(a1.x, a1.y), 5, cv::Scalar(255, 0, 0), -1);
+			cv::circle(dst, cv::Point(a2.x, a2.y), 5, cv::Scalar(255, 0, 0), -1);
+			cv::circle(dst, cv::Point(a3.x, a3.y), 5, cv::Scalar(255, 0, 0), -1);
+			cv::circle(dst, cv::Point(a4.x, a4.y), 5, cv::Scalar(255, 0, 0), -1);
+			cv::line(dst, { (int)a1.x, (int)a1.y }, { (int)a2.x, (int)a2.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
+			cv::line(dst, { (int)a2.x, (int)a2.y }, { (int)a3.x, (int)a3.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
+			cv::line(dst, { (int)a3.x, (int)a3.y }, { (int)a4.x, (int)a4.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
+			cv::line(dst, { (int)a4.x, (int)a4.y }, { (int)a1.x, (int)a1.y }, cv::Scalar{ 0, 0, 255 }, 2.0);
+		}
 
 		return dst;
 	}

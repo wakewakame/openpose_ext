@@ -112,7 +112,6 @@ namespace vt
 	private:
 		// メンバ変数(fx, fy, cx, cy, k1, k2, k3, k4)の意味については以下のURLを参照
 		//   http://opencv.jp/opencv-2.1/cpp/camera_calibration_and_3d_reconstruction.html
-		bool is_init = false;
 		double fx = 0.0, fy = 0.0;  // カメラの内部パラメータ行列の焦点距離
 		double cx = 0.0, cy = 0.0;  // カメラの内部パラメータ行列の主点
 		double k1 = 0.0, k2 = 0.0, k3 = 0.0, k4 = 0.0;  // カメラの歪み係数(distortion coefficients)
@@ -123,6 +122,7 @@ namespace vt
 		bool change_param = false;  // パラメータ変更フラグ
 
 	public:
+		bool is_init = false;
 		FisheyeToFlat();
 		virtual ~FisheyeToFlat();
 		void setParams(
@@ -149,7 +149,6 @@ namespace vt
 		double cam_pos_h;  // カメラの地面からの高さ(m)
 		Vector4 p1_, p2_, p3_, p4_;  // カメラキャリブレーション前のスクリーン座標(1点目, 2点目, 3点目, 4点目)
 		Vector4 p1, p2, p3, p4;  // カメラキャリブレーション後のスクリーン座標(1点目, 2点目, 3点目, 4点目)
-		FisheyeToFlat fisheyeToFlat;  // 魚眼レンズの歪み補正を行うクラス
 
 		// 計算により求まるパラメーター
 		double cam_l;  // カメラ座標の原点から画面の中心までの距離(ピクセル単位)
@@ -160,6 +159,7 @@ namespace vt
 
 		void calcParams();
 	public:
+		FisheyeToFlat fisheyeToFlat;  // 魚眼レンズの歪み補正を行うクラス
 		ScreenToGround();
 		virtual ~ScreenToGround();
 		void setParams(
@@ -176,7 +176,7 @@ namespace vt
 		);
 		Vector4 translate(Vector4 p);
 		void drawAreaLine(cv::Mat& mat, uint8_t mode);
-		cv::Mat ScreenToGround::translateMat(const cv::Mat& src, float zoom = 1.0f);
+		cv::Mat ScreenToGround::translateMat(const cv::Mat& src, float zoom = 1.0f, bool drawLine = false);
 		Vector4 ScreenToGround::onlyFlat(Vector4 p);
 		cv::Mat ScreenToGround::onlyFlatMat(const cv::Mat& src);
 	};
