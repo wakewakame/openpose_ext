@@ -81,15 +81,31 @@ set(SQLITECPP_RUN_CPPLINT OFF CACHE BOOL "" FORCE)
 add_subdirectory(${SQLITECPP_DIR_PATH})
 
 # add source files
-message(STATUS "search : all .cpp files")
+message(STATUS "search : all .cpp .lib files")
 file(GLOB_RECURSE ALL_CPP_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
-add_executable(openpose_ext "${ALL_CPP_FILES}")
+file(GLOB OPENPOSE_LIB_FILES "${OPENPOSE_DIR_PATH}/openpose/lib/*.lib")
+
+# add main program
+add_executable(openpose_ext "${CMAKE_SOURCE_DIR}/main.cpp" "${ALL_CPP_FILES}")
 target_include_directories(openpose_ext PRIVATE
 	"${CMAKE_SOURCE_DIR}/include"
 	"${OPENPOSE_DIR_PATH}/openpose/include"
 )
-file(GLOB OPENPOSE_LIB_FILES "${OPENPOSE_DIR_PATH}/openpose/lib/*.lib")
 target_link_libraries(openpose_ext ${OPENPOSE_LIB_FILES})
 target_link_libraries(openpose_ext SQLiteCpp)
 set_target_properties(openpose_ext PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:openpose_ext>")
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT openpose_ext)
+
+# add example programs
+file(GLOB_RECURSE ALL_EXAMPLE_FILES "${CMAKE_SOURCE_DIR}/examples/*.cpp")
+foreach(EXAMPLE_FILE IN ITEMS ${ALL_EXAMPLE_FILES})
+	get_filename_component(EXAMPLE_NAME ${EXAMPLE_FILE} NAME_WE)
+	add_executable("${EXAMPLE_NAME}" "${EXAMPLE_FILE}" "${ALL_CPP_FILES}")
+	target_include_directories("${EXAMPLE_NAME}" PRIVATE
+		"${CMAKE_SOURCE_DIR}/include"
+		"${OPENPOSE_DIR_PATH}/openpose/include"
+	)
+	target_link_libraries("${EXAMPLE_NAME}" ${OPENPOSE_LIB_FILES})
+	target_link_libraries("${EXAMPLE_NAME}" SQLiteCpp)
+	set_target_properties("${EXAMPLE_NAME}" PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${EXAMPLE_NAME}>")
+endforeach()

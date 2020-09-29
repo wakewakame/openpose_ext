@@ -40,4 +40,6 @@
 openpose_extフォルダ内のbuildフォルダに生成された`openpose_ext.sln`を開きます。  
 画面上部の`ローカル Windows デバッガー`を押し、ビルドを開始します。  
 ビルドが終わると、openpose_extが起動します。  
-動画ファイルを変更したい場合は、`openpose_ext/src/main.cpp`の`media/video.mp4`の箇所を適宜変更してください。  
+動画ファイルを変更したい場合は、`openpose_ext/main.cpp`の`media/video.mp4`の箇所を適宜変更してください。  
+## サンプルプログラム
+`openpose_ext/examples`にサンプルプログラムがいくつか準備されています。  
