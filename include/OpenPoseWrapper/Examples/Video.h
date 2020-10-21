@@ -7,7 +7,7 @@ private:
 	bool play_, needUpdate;
 
 public:
-	struct VideoInfo{
+	struct FrameInfo{
 		size_t frameNumber, frameSum, frameTimeStamp;
 	};
 	Video() : play_(true), needUpdate(false) {}
@@ -46,9 +46,9 @@ public:
 	}
 
 	// 動画の再生状態を取得
-	VideoInfo getInfo() const
+	FrameInfo getInfo() const
 	{
-		VideoInfo ret;
+		FrameInfo ret;
 
 		// 現在の再生位置(フレーム単位)
 		ret.frameNumber = (size_t)videoCapture.get(cv::CAP_PROP_POS_FRAMES);

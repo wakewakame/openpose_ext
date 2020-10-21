@@ -2,14 +2,16 @@
 #include <OpenPoseWrapper/Examples/Video.h>
 #include <OpenPoseWrapper/Examples/Preview.h>
 #include <OpenPoseWrapper/Examples/PlotInfo.h>
-//#include <OpenPoseWrapper/Examples/SqlOpenPoseEvent.h>
+#include <OpenPoseWrapper/Examples/SqlOpenPose.h>
 //#include <OpenPoseWrapper/Examples/TrackingOpenPoseEvent.h>
 //#include <OpenPoseWrapper/Examples/PeopleCounterOpenPoseEvent.h>
 
 int main(int argc, char* argv[])
 {
 	// 入力する映像ファイルのフルパス
+	// 注意 : ファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
 	std::string videoPath = R"(media/video.mp4)";
+	videoPath = R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\58.mp4)";
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
@@ -28,16 +30,35 @@ int main(int argc, char* argv[])
 	// 骨格などを表示するクラス
 	PlotInfo plot(true, true, true);
 
+	// SQLファイルの読み込み、書き込みを行うクラス
+	SqlOpenPose sql;
+	sql.open(sqlPath, 300);
+
 	while (true)
 	{
 		// 動画の次のフレームを読み込む
 		cv::Mat frame = video.next();
 
+		// フレーム番号などの情報を取得する
+		Video::FrameInfo frameInfo = video.getInfo();
+
 		// フレームがない場合は終了する
 		if (frame.empty()) break;
 
-		// 姿勢推定
-		auto people = mop.estimate(frame);
+		// SQLに姿勢が記録されていれば、その値を使う
+		auto peopleOpt = sql.read(frameInfo.frameNumber);
+		MinOpenPose::People people;
+		if (peopleOpt) { people = peopleOpt.value(); }
+
+		// SQLに姿勢が記録されていなければ姿勢推定を行う
+		else
+		{
+			// 姿勢推定
+			people = mop.estimate(frame);
+
+			// 結果をSQLに保存
+			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
+		}
 
 		// 映像の上に骨格を描画
 		plot.bone(frame, mop, people);  // 骨格を描画

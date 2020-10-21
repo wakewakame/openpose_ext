@@ -124,13 +124,13 @@ public:
 		start = end;
 
 		// 動画の再生情報の取得
-		Video::VideoInfo videoInfo = video.getInfo();
+		Video::FrameInfo frameInfo_ = video.getInfo();
 
 		// fpsと動画の再生時間、フレーム番号の表示
 		cv::Size ret{ 0, 0 }; int height = 20;
 		ret = gui::text(frame, "fps : " + std::to_string(fps), cv::Point{ 20, height }); height += ret.height + 10;
-		ret = gui::text(frame, "time : " + std::to_string(videoInfo.frameTimeStamp), cv::Point{ 20, height }); height += ret.height + 10;
-		ret = gui::text(frame, "frame : " + std::to_string(videoInfo.frameNumber) + " / " + std::to_string(videoInfo.frameSum), cv::Point{ 20, height }); height += ret.height + 10;
+		ret = gui::text(frame, "time : " + std::to_string(frameInfo_.frameTimeStamp), cv::Point{ 20, height }); height += ret.height + 10;
+		ret = gui::text(frame, "frame : " + std::to_string(frameInfo_.frameNumber) + " / " + std::to_string(frameInfo_.frameSum), cv::Point{ 20, height }); height += ret.height + 10;
 	}
 
 	// IDの描画
