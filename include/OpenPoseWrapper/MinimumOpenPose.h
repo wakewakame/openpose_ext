@@ -7,8 +7,6 @@
 #include <stdint.h>
 #include <cassert>
 
-#include <OpenPoseWrapper/OpenPoseEvent.h>
-
 /**
  * OpenPose のラッパークラス\n
  * OpenPose を別スレッドで動かし、 OpenPose の操作を簡単にする
@@ -55,7 +53,7 @@ private:
 		 * @param image 追加する画像 (フォーマット : CV_8UC3)
 		 * @param maxQueueSize 追加できる画像数の上限
 		 */
-		int pushImage(cv::Mat& image, size_t frameNumber, size_t maxQueueSize);
+		int pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize);
 
 		/**
 		 * エラーを取得する関数\n
@@ -133,7 +131,7 @@ private:
 	/**
 	 * OpenPose の処理のステータスを表す
 	 */
-	enum ProcessState : uint8_t
+	enum class ProcessState
 	{
 		//! 入力キューに何も溜まっておらず、入力待ちの状態
 		WaitInput = 0,
@@ -160,10 +158,13 @@ private:
 	std::vector<std::string> errorMessage;
 	// OpenPose 側のスレッドと同期するための mutex
 	std::mutex inOutMtx;
-	// OpenPose のイベントリスナー
-	std::vector<std::shared_ptr<OpenPoseEvent>> openPoseEvents;
-	// OpenPose のイベントリスナーに渡す変数
-	ImageInfo imageInfo;
+
+	/**
+	 * OpenPose を開始する\n
+	 * 既に OpenPose が開始していた場合は何も変更しない\n
+	 * この関数はコンストラクタで呼ばれる
+	 */
+	int startup(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
 
 	/**
 	 * OpenPose を終了する\n
@@ -184,7 +185,7 @@ private:
 	 * @param maxQueueSize キューの上限
 	 * @return キューの追加に成功すると 0 が返り、失敗すると 1 が返る
 	 */
-	int pushImage(cv::Mat& image, size_t frameNumber, size_t maxQueueSize = 128);
+	int pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize = 128);
 
 	/**
 	 * OpenPose の処理のステータスを取得する
@@ -200,17 +201,11 @@ private:
 	std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> getResultsAndReset();
 
 public:
-	MinimumOpenPose();
+	MinimumOpenPose(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
 	virtual ~MinimumOpenPose();
 
-	template <class Ty, class... Types>
-	inline std::shared_ptr<Ty> addEventListener(Types && ... Args)
-	{
-		std::shared_ptr<Ty> ty = std::make_shared<Ty>(std::forward<Types>(Args)...);
-		std::shared_ptr<OpenPoseEvent> openPoseEvent = std::dynamic_pointer_cast<OpenPoseEvent>(ty);
-		openPoseEvents.push_back(openPoseEvent);
-		return ty;
-	}
-
-	int startup(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
+	struct Node { float x, y, confidence; };
+	using Person = std::vector<Node>;
+	using People = std::map<size_t, Person>;
+	People estimate(const cv::Mat& inputImage);
 };

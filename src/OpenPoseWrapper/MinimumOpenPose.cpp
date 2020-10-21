@@ -33,7 +33,7 @@ void MinimumOpenPose::WUserInputProcessing::work(std::shared_ptr<std::vector<std
 	}
 }
 
-int MinimumOpenPose::WUserInputProcessing::pushImage(cv::Mat& image, size_t frameNumber, size_t maxQueueSize)
+int MinimumOpenPose::WUserInputProcessing::pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize)
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	if (images.size() >= maxQueueSize) return 1;
@@ -102,10 +102,11 @@ void MinimumOpenPose::WUserOutputProcessing::shutdown()
 	this->stop();
 }
 
-MinimumOpenPose::MinimumOpenPose()
+MinimumOpenPose::MinimumOpenPose(op::PoseModel poseModel, op::Point<int> netInputSize)
 {
 	opInput = std::make_shared<WUserInputProcessing>(inOutMtx);
 	opOutput = std::make_shared<WUserOutputProcessing>(inOutMtx);
+	startup(poseModel, netInputSize);
 }
 
 MinimumOpenPose::~MinimumOpenPose()
@@ -115,7 +116,6 @@ MinimumOpenPose::~MinimumOpenPose()
 
 int MinimumOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSize)
 {
-	if (openPoseEvents.size() == 0) return 0;
 	// 変数の初期化
 	jobCount = 0;
 	errorMessage.clear();
@@ -133,8 +133,6 @@ int MinimumOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSiz
 	opWrapper->setWorker(op::WorkerType::Input, opInput, true);
 	// 画像出力 Worker の設定
 	opWrapper->setWorker(op::WorkerType::Output, opOutput, true);
-	// 関数の戻り値を代入する一時的変数
-	int ret = 0;
 	// OpenPose の実行
 	opThread = std::thread([&] {
 		try {
@@ -145,99 +143,98 @@ int MinimumOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSiz
 			errorMessage.push_back(e.what());
 		}
 	});
-	// イベントリスナーの初期化関数を実行
-	for (size_t i = 0; i < openPoseEvents.size(); i++)
-	{
-		ret = openPoseEvents[i]->init();
-		if (ret) errorMessage.push_back("OpenPoseEvent::init returned 1.");
-	}
-	// イベントループの開始
+	return 0;
+}
+
+MinimumOpenPose::People MinimumOpenPose::estimate(const cv::Mat& inputImage)
+{
+	// 関数が返す予定の値
+	People people;
+
+	// 画像が空であれば処理を終了する
+	if (inputImage.empty()) return people;
+
+	// 姿勢推定の開始
 	while (true)
 	{
-		WHILE_CONTINUE:
 		// OpenPose の処理状態の確認
-		switch (getProcessState())
-		{
-		case MinimumOpenPose::ProcessState::WaitInput: // 入力待機
-			imageInfo.people.clear();
-			for (long long i = openPoseEvents.size() - 1; i >= 0; i--)
-			{
-				ret = openPoseEvents[i]->sendImageInfo(imageInfo, [this]() { shutdown(); });
-				if (ret)
-				{
-					errorMessage.push_back("OpenPoseEvent::sendImageInfo returned 1.");
-					goto WHILE_CONTINUE;
-				}
-			}
-			if (imageInfo.inputImage.empty()) break;
-			if (imageInfo.needOpenposeProcess)
-			{
-				pushImage(imageInfo.inputImage, imageInfo.frameNumber); // OpenPose に画像を渡す
-			}
-			else
-			{
-				imageInfo.outputImage = imageInfo.inputImage;
+		const ProcessState state = getProcessState();
 
-				for (size_t i = 0; i < openPoseEvents.size(); i++)
-				{
-					ret = openPoseEvents[i]->recieveImageInfo(imageInfo, [this]() { shutdown(); });
-					if (ret)
-					{
-						errorMessage.push_back("OpenPoseEvent::recieveImageInfo returned 1.");
-						goto WHILE_CONTINUE;
-					}
-				}
-			}
-			break;
-		case MinimumOpenPose::ProcessState::Processing: // 処理中
-			break;
-		case MinimumOpenPose::ProcessState::Finish: // 処理の終了
-			{
-				auto results = getResultsAndReset(); // 出力されたデータの取得
-				if (!static_cast<bool>(results)) break;
-				for (auto result : *results)
-				{
-					imageInfo.people.clear();
-					// 画面内に映っている人数分ループする
-					for (int personIndex = 0; personIndex < result->poseKeypoints.getSize(0); personIndex++)
-					{
-						std::vector<ImageInfo::Node> nodes;
-						for (int nodeIndex = 0; nodeIndex < result->poseKeypoints.getSize(1); nodeIndex++)
-						{
-							nodes.push_back(ImageInfo::Node{
-								result->poseKeypoints[{personIndex, nodeIndex, 0}],
-								result->poseKeypoints[{personIndex, nodeIndex, 1}],
-								result->poseKeypoints[{personIndex, nodeIndex, 2}]
-							});
-						}
-						imageInfo.people[(size_t)personIndex] = std::move(nodes);
-					}
-					// 画像のコピー
-					imageInfo.outputImage = result->cvOutputData;
-					for (size_t i = 0; i < openPoseEvents.size(); i++)
-					{
-						ret = openPoseEvents[i]->recieveImageInfo(imageInfo, [this]() { shutdown(); });
-						if (ret)
-						{
-							errorMessage.push_back("OpenPoseEvent::recieveImageInfo returned 1.");
-							goto WHILE_CONTINUE;
-						}
-					}
-				}
-			}
-			break;
-		case ProcessState::Shutdown:
-			return (!errorMessage.empty());
-			break;
+		// OpenPose が入力待機状態の場合
+		if (ProcessState::WaitInput == state)
+		{			
+			// OpenPose に画像を渡す
+			pushImage(inputImage, 0);
+
+			// 処理が終わるまでループ
+			continue;
 		}
+
+		// OpenPose が処理中の場合
+		if (ProcessState::Processing == state)
+		{
+			// 処理が終わるまでループ
+			continue;
+		}
+
+		// OpenPose のスレッドが終了している場合
+		if (ProcessState::Shutdown == state)
+		{
+			// エラーが発生して終了した場合はエラー内容を出力
+			for (auto err : errorMessage)
+			{
+				std::cout << err << std::endl;
+			}
+
+			// 処理を終了
+			return people;
+		}
+
+		// OpenPose の処理が終了した場合
+		if (ProcessState::Finish == state)
+		{
+			// 出力されたデータの取得
+			auto results = getResultsAndReset();
+			if (!static_cast<bool>(results)) return people;
+
+			// 出力されるデータの数だけループする (1つしか入力していないので1回だけループするはず)
+			for (auto result : *results)
+			{
+				// 画面内に映っている人数分ループする
+				for (int personIndex = 0; personIndex < result->poseKeypoints.getSize(0); personIndex++)
+				{
+					Person& nodes = people[(size_t)personIndex];
+					nodes.reserve(result->poseKeypoints.getSize(1));
+
+					// 骨格の数だけループする (BODY25のモデルを使う場合は25回)
+					for (int nodeIndex = 0; nodeIndex < result->poseKeypoints.getSize(1); nodeIndex++)
+					{
+						nodes.emplace_back(
+							result->poseKeypoints[{personIndex, nodeIndex, 0}],
+							result->poseKeypoints[{personIndex, nodeIndex, 1}],
+							result->poseKeypoints[{personIndex, nodeIndex, 2}]
+						);
+					}
+				}
+
+				// 姿勢推定のプレビュー画像
+				//cv::Mat outputImage = result->cvOutputData;
+			}
+
+			return people;
+		}
+
+		// ここまで到達するこはないはず
+		assert(false);
 	}
-	return 0;
+
+	// ここまで到達するこはないはず
+	assert(false);
 }
 
 void MinimumOpenPose::shutdown()
 {
 	if (!isStartup()) return;
-	for (size_t i = 0; i < openPoseEvents.size(); i++) openPoseEvents[i]->exit();
 	opInput->shutdown();
 	opOutput->shutdown();
 	opThread.join();
@@ -245,7 +242,7 @@ void MinimumOpenPose::shutdown()
 
 bool MinimumOpenPose::isStartup() { return opThread.joinable(); }
 
-int MinimumOpenPose::pushImage(cv::Mat& image, size_t frameNumber, size_t maxQueueSize)
+int MinimumOpenPose::pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize)
 {
 	if (
 		(!isStartup()) ||
@@ -264,12 +261,11 @@ MinimumOpenPose::ProcessState MinimumOpenPose::getProcessState()
 	opOutput->getErrors(errorMessage, true);
 	if (!errorMessage.empty())
 	{
-		for (size_t i = 0; i < openPoseEvents.size(); i++) openPoseEvents[i]->recieveErrors(errorMessage);
 		shutdown();
 	}
 
-	if (!isStartup()) return ProcessState::Shutdown;
-	else if (opOutput->getResultsSize() < jobCount) return ProcessState::Processing;
+	if (!isStartup()) { return ProcessState::Shutdown; }
+	else if (opOutput->getResultsSize() < jobCount) { return ProcessState::Processing; }
 	else if (opOutput->getResultsSize() == jobCount)
 	{ 
 		if (opOutput->getResultsSize() == 0) return ProcessState::WaitInput;
@@ -282,7 +278,10 @@ std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> MinimumOpenPose::getRes
 	if (
 		(!isStartup()) ||
 		(getProcessState() != ProcessState::Finish)
-		) return std::make_shared<std::vector<std::shared_ptr<op::Datum>>>();
+	)
+	{
+		return std::make_shared<std::vector<std::shared_ptr<op::Datum>>>();
+	}
 	jobCount = 0;
 	return opOutput->getResultsAndReset();
 }
