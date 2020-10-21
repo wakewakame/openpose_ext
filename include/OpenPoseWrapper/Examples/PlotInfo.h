@@ -112,7 +112,7 @@ public:
 	virtual ~PlotInfo() {};
 
 	// フレームレートとフレーム番号の描画
-	void plotFrameInfo(cv::Mat& frame, const Video& video)
+	void frameInfo(cv::Mat& frame, const Video& video)
 	{
 		// フレームが空かを確認する
 		if (frame.empty()) return;
@@ -133,31 +133,43 @@ public:
 		ret = gui::text(frame, "frame : " + std::to_string(videoInfo.frameNumber) + " / " + std::to_string(videoInfo.frameSum), cv::Point{ 20, height }); height += ret.height + 10;
 	}
 
-	// 骨格とIDの描画
-	void plotBone(cv::Mat& frame, const MinOpenPose& mop, const MinOpenPose::People& people)
+	// IDの描画
+	void id(cv::Mat& frame, const MinOpenPose::People& people)
+	{
+		// フレームが空かを確認する
+		if (frame.empty()) return;
+
+		// 人のIDを骨格の重心位置に表示
+		for (auto person = people.begin(); person != people.end(); person++)
+		{
+			cv::Point p; size_t enableNodeSum = 0;
+
+			// 関節の数だけループする (BODY25モデルを使う場合は25回)
+			for (auto node : person->second)
+			{
+				// 信頼値が 0 の関節は座標が (0, 0) になっているため除外する
+				if (node.confidence == 0.0f) break;
+
+				// 加算
+				p.x += (int)node.x; p.y += (int)node.y; enableNodeSum++;
+			}
+
+			// 骨格の重心を計算
+			if (enableNodeSum == 0) continue;
+			p.x /= enableNodeSum; p.y /= enableNodeSum;
+
+			// IDの表示
+			gui::text(frame, std::to_string(person->first), p, gui::CENTER_CENTER, 0.7);
+		}
+	}
+
+	// 骨格の描画
+	void bone(cv::Mat& frame, const MinOpenPose& mop, const MinOpenPose::People& people)
 	{
 		// フレームが空かを確認する
 		if (frame.empty()) return;
 
 		// 骨格の表示
 		renderKeypoints(frame, people, mop);
-
-		// 人のIDを骨格の重心位置に表示
-		for (auto person = people.begin(); person != people.end(); person++)
-		{
-			cv::Point p; size_t enableNodeSum = 0;
-			// 関節の数だけループする (BODY25モデルを使う場合は25回)
-			for (auto node : person->second)
-			{
-				// 信頼値が 0 の関節は座標が (0, 0) になっているため除外する
-				if (node.confidence == 0.0f) break;
-				// 加算
-				p.x += (int)node.x; p.y += (int)node.y; enableNodeSum++;
-			}
-			// 骨格の重心を計算
-			p.x /= enableNodeSum; p.y /= enableNodeSum;
-			// IDの表示
-			gui::text(frame, std::to_string(person->first), p, gui::CENTER_CENTER, 0.5);
-		}
 	}
 };

@@ -40,8 +40,9 @@ int main(int argc, char* argv[])
 		auto people = mop.estimate(frame);
 
 		// 映像の上に骨格を描画
-		plot.plotBone(frame, mop, people);
-		plot.plotFrameInfo(frame, video);
+		plot.bone(frame, mop, people);  // 骨格を描画
+		plot.id(frame, people);  // フレームレートとフレーム番号の描画
+		plot.frameInfo(frame, video);  // フレームレートとフレーム番号の描画
 
 		// プレビュー
 		int ret = preview.preview(frame);
