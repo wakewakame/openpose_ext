@@ -11,7 +11,7 @@
  * OpenPose のラッパークラス\n
  * OpenPose を別スレッドで動かし、 OpenPose の操作を簡単にする
  */
-class MinimumOpenPose
+class MinOpenPose
 {
 private:
 	/**
@@ -158,6 +158,8 @@ private:
 	std::vector<std::string> errorMessage;
 	// OpenPose 側のスレッドと同期するための mutex
 	std::mutex inOutMtx;
+	// OpenPose の設定
+	op::WrapperStructPose wrapperStructPose;
 
 	/**
 	 * OpenPose を開始する\n
@@ -201,11 +203,13 @@ private:
 	std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> getResultsAndReset();
 
 public:
-	MinimumOpenPose(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
-	virtual ~MinimumOpenPose();
+	MinOpenPose(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
+	virtual ~MinOpenPose();
 
 	struct Node { float x, y, confidence; };
 	using Person = std::vector<Node>;
 	using People = std::map<size_t, Person>;
 	People estimate(const cv::Mat& inputImage);
+
+	op::WrapperStructPose getConfig() const { return wrapperStructPose;  }
 };

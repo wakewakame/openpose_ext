@@ -1,12 +1,12 @@
 #include "OpenPoseWrapper/MinimumOpenPose.h"
 
-MinimumOpenPose::WUserInputProcessing::WUserInputProcessing(std::mutex& inOutMtx) : inOutMtx(inOutMtx) {}
+MinOpenPose::WUserInputProcessing::WUserInputProcessing(std::mutex& inOutMtx) : inOutMtx(inOutMtx) {}
 
-void MinimumOpenPose::WUserInputProcessing::initializationOnThread() {
+void MinOpenPose::WUserInputProcessing::initializationOnThread() {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 }
 
-void MinimumOpenPose::WUserInputProcessing::work(std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datumsPtr)
+void MinOpenPose::WUserInputProcessing::work(std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datumsPtr)
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	try
@@ -33,7 +33,7 @@ void MinimumOpenPose::WUserInputProcessing::work(std::shared_ptr<std::vector<std
 	}
 }
 
-int MinimumOpenPose::WUserInputProcessing::pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize)
+int MinOpenPose::WUserInputProcessing::pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize)
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	if (images.size() >= maxQueueSize) return 1;
@@ -41,30 +41,30 @@ int MinimumOpenPose::WUserInputProcessing::pushImage(const cv::Mat& image, size_
 	return 0;
 }
 
-void MinimumOpenPose::WUserInputProcessing::getErrors(std::vector<std::string>& errorMessage, bool clearErrors)
+void MinOpenPose::WUserInputProcessing::getErrors(std::vector<std::string>& errorMessage, bool clearErrors)
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	for (auto error : this->errorMessage) errorMessage.push_back(error);
 	if (clearErrors) this->errorMessage.clear();
 }
 
-void MinimumOpenPose::WUserInputProcessing::shutdown()
+void MinOpenPose::WUserInputProcessing::shutdown()
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	this->stop();
 }
 
-MinimumOpenPose::WUserOutputProcessing::WUserOutputProcessing(std::mutex& inOutMtx) : inOutMtx(inOutMtx) {
+MinOpenPose::WUserOutputProcessing::WUserOutputProcessing(std::mutex& inOutMtx) : inOutMtx(inOutMtx) {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	results = std::make_shared<std::vector<std::shared_ptr<op::Datum>>>();
 	assert(static_cast<bool>(results));
 }
 
-void MinimumOpenPose::WUserOutputProcessing::initializationOnThread() {
+void MinOpenPose::WUserOutputProcessing::initializationOnThread() {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 }
 
-void MinimumOpenPose::WUserOutputProcessing::work(std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datumsPtr)
+void MinOpenPose::WUserOutputProcessing::work(std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datumsPtr)
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	assert(static_cast<bool>(results));
@@ -73,14 +73,14 @@ void MinimumOpenPose::WUserOutputProcessing::work(std::shared_ptr<std::vector<st
 	}
 }
 
-size_t MinimumOpenPose::WUserOutputProcessing::getResultsSize()
+size_t MinOpenPose::WUserOutputProcessing::getResultsSize()
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	assert(static_cast<bool>(results));
 	return results->size();
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> MinimumOpenPose::WUserOutputProcessing::getResultsAndReset()
+std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> MinOpenPose::WUserOutputProcessing::getResultsAndReset()
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	auto results = std::make_shared<std::vector<std::shared_ptr<op::Datum>>>();
@@ -89,39 +89,37 @@ std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> MinimumOpenPose::WUserO
 	return results;
 }
 
-void MinimumOpenPose::WUserOutputProcessing::getErrors(std::vector<std::string>& errorMessage, bool clearErrors)
+void MinOpenPose::WUserOutputProcessing::getErrors(std::vector<std::string>& errorMessage, bool clearErrors)
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	for (auto error : this->errorMessage) errorMessage.push_back(error);
 	if (clearErrors) this->errorMessage.clear();
 }
 
-void MinimumOpenPose::WUserOutputProcessing::shutdown()
+void MinOpenPose::WUserOutputProcessing::shutdown()
 {
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	this->stop();
 }
 
-MinimumOpenPose::MinimumOpenPose(op::PoseModel poseModel, op::Point<int> netInputSize)
+MinOpenPose::MinOpenPose(op::PoseModel poseModel, op::Point<int> netInputSize)
 {
 	opInput = std::make_shared<WUserInputProcessing>(inOutMtx);
 	opOutput = std::make_shared<WUserOutputProcessing>(inOutMtx);
 	startup(poseModel, netInputSize);
 }
 
-MinimumOpenPose::~MinimumOpenPose()
+MinOpenPose::~MinOpenPose()
 {
 	shutdown();
 }
 
-int MinimumOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSize)
+int MinOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSize)
 {
 	// 変数の初期化
 	jobCount = 0;
 	errorMessage.clear();
 	opWrapper = std::make_unique<op::Wrapper>();
-	// OpenPose の設定
-	op::WrapperStructPose wrapperStructPose;
 	// 使用する骨格モデルの選択
 	wrapperStructPose.poseModel = poseModel;
 	// ネットワークの解像度の設定 (16の倍数のみ指定可能, -1は縦横比に合わせて自動計算される)
@@ -146,7 +144,7 @@ int MinimumOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSiz
 	return 0;
 }
 
-MinimumOpenPose::People MinimumOpenPose::estimate(const cv::Mat& inputImage)
+MinOpenPose::People MinOpenPose::estimate(const cv::Mat& inputImage)
 {
 	// 関数が返す予定の値
 	People people;
@@ -209,11 +207,11 @@ MinimumOpenPose::People MinimumOpenPose::estimate(const cv::Mat& inputImage)
 					// 骨格の数だけループする (BODY25のモデルを使う場合は25回)
 					for (int nodeIndex = 0; nodeIndex < result->poseKeypoints.getSize(1); nodeIndex++)
 					{
-						nodes.emplace_back(
+						nodes.push_back(Node{
 							result->poseKeypoints[{personIndex, nodeIndex, 0}],
 							result->poseKeypoints[{personIndex, nodeIndex, 1}],
 							result->poseKeypoints[{personIndex, nodeIndex, 2}]
-						);
+						});
 					}
 				}
 
@@ -232,7 +230,7 @@ MinimumOpenPose::People MinimumOpenPose::estimate(const cv::Mat& inputImage)
 	assert(false);
 }
 
-void MinimumOpenPose::shutdown()
+void MinOpenPose::shutdown()
 {
 	if (!isStartup()) return;
 	opInput->shutdown();
@@ -240,9 +238,9 @@ void MinimumOpenPose::shutdown()
 	opThread.join();
 }
 
-bool MinimumOpenPose::isStartup() { return opThread.joinable(); }
+bool MinOpenPose::isStartup() { return opThread.joinable(); }
 
-int MinimumOpenPose::pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize)
+int MinOpenPose::pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize)
 {
 	if (
 		(!isStartup()) ||
@@ -253,7 +251,7 @@ int MinimumOpenPose::pushImage(const cv::Mat& image, size_t frameNumber, size_t 
 	return 0;
 }
 
-MinimumOpenPose::ProcessState MinimumOpenPose::getProcessState()
+MinOpenPose::ProcessState MinOpenPose::getProcessState()
 {
 	assert(opOutput->getResultsSize() > jobCount);
 	
@@ -273,7 +271,7 @@ MinimumOpenPose::ProcessState MinimumOpenPose::getProcessState()
 	}
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> MinimumOpenPose::getResultsAndReset()
+std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> MinOpenPose::getResultsAndReset()
 {
 	if (
 		(!isStartup()) ||
