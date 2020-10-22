@@ -3,15 +3,19 @@
 #include <OpenPoseWrapper/Examples/Preview.h>
 #include <OpenPoseWrapper/Examples/PlotInfo.h>
 #include <OpenPoseWrapper/Examples/SqlOpenPose.h>
-//#include <OpenPoseWrapper/Examples/TrackingOpenPoseEvent.h>
+#include <OpenPoseWrapper/Examples/Tracking.h>
 //#include <OpenPoseWrapper/Examples/PeopleCounterOpenPoseEvent.h>
+
+using People = MinOpenPose::People;
+using Person = MinOpenPose::Person;
+using Node = MinOpenPose::Node;
 
 int main(int argc, char* argv[])
 {
 	// 入力する映像ファイルのフルパス
 	// 注意 : ファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
 	std::string videoPath = R"(media/video.mp4)";
-	videoPath = R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\58.mp4)";
+	//videoPath = R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\58.mp4)";
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
@@ -34,6 +38,14 @@ int main(int argc, char* argv[])
 	SqlOpenPose sql;
 	sql.open(sqlPath, 300);
 
+	// トラッキング
+	Tracking tracking(
+		5,  // numberNodesToTrust
+		0.5f,  // confidenceThreshold
+		10,  // numberFramesToLost
+		50.0f  // distanceThreshold
+	);
+
 	while (true)
 	{
 		// 動画の次のフレームを読み込む
@@ -47,7 +59,7 @@ int main(int argc, char* argv[])
 
 		// SQLに姿勢が記録されていれば、その値を使う
 		auto peopleOpt = sql.read(frameInfo.frameNumber);
-		MinOpenPose::People people;
+		People people;
 		if (peopleOpt) { people = peopleOpt.value(); }
 
 		// SQLに姿勢が記録されていなければ姿勢推定を行う
@@ -60,9 +72,12 @@ int main(int argc, char* argv[])
 			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
 		}
 
+		// トラッキング
+		auto tracked_people = tracking.tracking(sql, frameInfo.frameNumber, people).value();
+
 		// 映像の上に骨格を描画
-		plot.bone(frame, mop, people);  // 骨格を描画
-		plot.id(frame, people);  // フレームレートとフレーム番号の描画
+		plot.bone(frame, mop, tracked_people);  // 骨格を描画
+		plot.id(frame, tracked_people);  // フレームレートとフレーム番号の描画
 		plot.frameInfo(frame, video);  // フレームレートとフレーム番号の描画
 
 		// プレビュー

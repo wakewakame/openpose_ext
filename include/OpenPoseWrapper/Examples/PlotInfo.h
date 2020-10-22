@@ -19,12 +19,12 @@ private:
 		if (people.size() == 0) return;
 
 		op::Array<float> keypoints({ (int)people.size(), (int)((people.begin())->second.size()), 3 });
-		for (int person_index = 0; person_index < people.size(); person_index++)
+		int person_index = 0;
+		for (auto person = people.begin(); person != people.end(); person++, person_index++)
 		{
-			const MinOpenPose::Person person = people.at((size_t)person_index);
-			for (int node_index = 0; node_index < person.size(); node_index++)
+			for (int node_index = 0; node_index < person->second.size(); node_index++)
 			{
-				const MinOpenPose::Node node = person[node_index];
+				const MinOpenPose::Node node = person->second[node_index];
 				keypoints[{person_index, node_index, 0}] = node.x;
 				keypoints[{person_index, node_index, 1}] = node.y;
 				keypoints[{person_index, node_index, 2}] = node.confidence;
@@ -148,14 +148,16 @@ public:
 			for (auto node : person->second)
 			{
 				// 信頼値が 0 の関節は座標が (0, 0) になっているため除外する
-				if (node.confidence == 0.0f) break;
+				if (node.confidence == 0.0f) continue;
 
 				// 加算
 				p.x += (int)node.x; p.y += (int)node.y; enableNodeSum++;
 			}
 
-			// 骨格の重心を計算
+			// 0割りを避ける
 			if (enableNodeSum == 0) continue;
+
+			// 骨格の重心を計算
 			p.x /= enableNodeSum; p.y /= enableNodeSum;
 
 			// IDの表示

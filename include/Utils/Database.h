@@ -10,16 +10,16 @@ class Database
 private:
 	std::unique_ptr<SQLite::Transaction> upTransaction;
 
-	void bind(SQLite::Statement&, size_t);
+	void bind(SQLite::Statement&, size_t) const;
 	template<typename Head, typename... Body>
-	void bind(SQLite::Statement& query, size_t index, Head head, Body... body)
+	void bind(SQLite::Statement& query, size_t index, Head head, Body... body) const
 	{
 		query.bind(index, head);
 		bind(query, index + 1, body...);
 	}
 
-	template<typename... Body> void bind(SQLite::Statement& query, size_t index, uint64_t head, Body... body) { bind(query, index, (long long)head, body...); }
-	template<typename... Body> void bind(SQLite::Statement& query, size_t index, float head, Body... body) { bind(query, index, (double)head, body...); }
+	template<typename... Body> void bind(SQLite::Statement& query, size_t index, uint64_t head, Body... body) const { bind(query, index, (long long)head, body...); }
+	template<typename... Body> void bind(SQLite::Statement& query, size_t index, float head, Body... body) const { bind(query, index, (double)head, body...); }
 
 public:
 	Database();
@@ -40,16 +40,16 @@ public:
 
 	int deleteTableIfExist(const std::string& tableName);
 
-	bool isDataExist(const  std::string& tableName, const  std::string& rowTitle, long long number);
+	bool isDataExist(const  std::string& tableName, const  std::string& rowTitle, long long number) const;
 
-	bool isDataExist(const  std::string& tableName, const  std::string& rowTitle1, std::string rowTitle2, long long number1, long long number2);
+	bool isDataExist(const  std::string& tableName, const  std::string& rowTitle1, std::string rowTitle2, long long number1, long long number2) const;
 
-	bool isDataExist(const  std::string& tableName, const  std::string& rowTitle, const  std::string& text);
+	bool isDataExist(const  std::string& tableName, const  std::string& rowTitle, const  std::string& text) const;
 
-	bool isDataExist(const  std::string& tableName, const  std::string& rowTitle1, const  std::string& rowTitle2, const  std::string& text1, const  std::string& text2);
+	bool isDataExist(const  std::string& tableName, const  std::string& rowTitle1, const  std::string& rowTitle2, const  std::string& text1, const  std::string& text2) const;
 	
 	template<typename... Body>
-	int bindAll(SQLite::Statement& query, Body... body)
+	int bindAll(SQLite::Statement& query, Body... body) const
 	{
 		try
 		{
