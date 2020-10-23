@@ -217,7 +217,7 @@ namespace vt
 	{
 		return !((*this) == src);
 	}
-	Vector4 Vector4::operator+(const Vector4& src)
+	Vector4 Vector4::operator+(const Vector4& src) const
 	{
 		return Vector4(
 			x + src.x,
@@ -226,7 +226,7 @@ namespace vt
 			(w + src.w) / 2.0
 		);
 	}
-	Vector4 Vector4::operator+(const double num)
+	Vector4 Vector4::operator+(const double num) const
 	{
 		return Vector4(
 			x + num,
@@ -235,7 +235,7 @@ namespace vt
 			w
 		);
 	}
-	Vector4 Vector4::operator-(const Vector4& src)
+	Vector4 Vector4::operator-(const Vector4& src) const
 	{
 		return Vector4(
 			x - src.x,
@@ -244,7 +244,7 @@ namespace vt
 			(w + src.w) / 2.0
 		);
 	}
-	Vector4 Vector4::operator-(const double num)
+	Vector4 Vector4::operator-(const double num) const
 	{
 		return Vector4(
 			x - num,
@@ -253,7 +253,7 @@ namespace vt
 			w
 		);
 	}
-	Vector4 Vector4::operator*(const Vector4& src)
+	Vector4 Vector4::operator*(const Vector4& src) const
 	{
 		return Vector4(
 			x * src.x,
@@ -262,7 +262,7 @@ namespace vt
 			(w + src.w) / 2.0
 		);
 	}
-	Vector4 Vector4::operator*(const double num)
+	Vector4 Vector4::operator*(const double num) const
 	{
 		return Vector4(
 			x * num,
@@ -271,7 +271,7 @@ namespace vt
 			w
 		);
 	}
-	Vector4 Vector4::operator/(const Vector4& src)
+	Vector4 Vector4::operator/(const Vector4& src) const
 	{
 		return Vector4(
 			x / src.x,
@@ -280,7 +280,7 @@ namespace vt
 			(w + src.w) / 2.0
 		);
 	}
-	Vector4 Vector4::operator/(const double num)
+	Vector4 Vector4::operator/(const double num) const
 	{
 		return Vector4(
 			x / num,
@@ -301,20 +301,20 @@ namespace vt
 	{
 		return cv::Point2d{ x, y };
 	}
-	double Vector4::length()
+	double Vector4::length() const
 	{
 		return std::sqrt(std::pow(x, 2.0) + std::pow(y, 2.0) + std::pow(z, 2.0));
 	}
-	Vector4 Vector4::normal()
+	Vector4 Vector4::normal() const
 	{
 		return (*this) / length();
 	}
-	Vector4 Vector4::worldToScreen(Matrix4 projModelView)
+	Vector4 Vector4::worldToScreen(const Matrix4 projModelView) const
 	{
 		Vector4 v = cross(projModelView, *this);
 		return v / v.w;
 	}
-	Vector4 Vector4::screenToWorld(Matrix4 proj, double wTmp, double hTmp)
+	Vector4 Vector4::screenToWorld(const Matrix4 proj, const double wTmp, const double hTmp) const
 	{
 		Vector4 p = Vector4(0, 0, 0);
 		p.x = (x * 2.0 / wTmp) - 1.0;
@@ -324,7 +324,7 @@ namespace vt
 		p.y = p.y * p.z / proj.m11;
 		return p;
 	}
-	double Vector4::dot(const Vector4& left, const Vector4& right)
+	double Vector4::dot(const Vector4& left, const Vector4& right) const
 	{
 		return left.x * right.x + left.y * right.y + left.z * right.z;
 	}

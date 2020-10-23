@@ -87,13 +87,6 @@ public:
 					(double)((int)((std::sin(((double)index) * 92763.0) + 1.0) * 100000.0) % 120 + 80)
 				}, 2.0
 			);
-
-			// idの描画
-			gui::text(
-				frame, std::to_string(index),
-				{ (int)currentPosition.x, (int)currentPosition.y },
-				gui::CENTER_CENTER, 0.5
-			);
 		}
 
 		// カウントを表示

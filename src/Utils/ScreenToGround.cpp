@@ -123,7 +123,7 @@ namespace vt
 			cam_width, cam_heigth, output_scale, fx, fy, cx, cy, k1, k2, k3, k4
 		);
 	}
-	Vector4 ScreenToGround::translate(Vector4 p)
+	Vector4 ScreenToGround::translate(Vector4 p) const
 	{
 		// ‹›ŠáƒŒƒ“ƒY‚É‚æ‚é˜c‚İC³
 		p = fisheyeToFlat.translate(p, cam_w, cam_h);

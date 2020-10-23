@@ -12,10 +12,31 @@ private:
 	std::vector<std::function<void(int, int, int)>> mouseEventListener;
 
 public:
-	Preview(const std::string windowTitle = "result") : windowTitle(windowTitle){}
+	// ウィンドウ上のマウス座標
+	cv::Point mouse;
+
+	Preview(const std::string windowTitle = "result") : windowTitle(windowTitle), mouse(0, 0)
+	{
+		// マウス座標を更新
+		addMouseEventListener([&](int event, int x, int y) {
+			if (event == cv::EVENT_MOUSEMOVE) { mouse.x = x; mouse.y = y; }
+		});
+	}
+	
 	virtual ~Preview() {};
 
-	int preview(const cv::Mat& input, uint32_t delay = 1)
+	/**
+	 * 指定された画像をウィンドウとして表示する
+	 * @param input 表示する画像
+	 * @param delay ミリ秒単位の待機時間 (0を指定するとキー入力があるまで停止する)
+	 * @withoutWaitKey trueにするとdelayによる待機時間が0秒になるが、addKeyboardEventListener関数の効果がなくなる
+	 * @return 最後に入力されたキー番号が帰る
+	 * @note
+	 * OpenCVの仕様上、複数のウィンドウが生成された状態でキー入力をしても、どのウィンドウに対しての操作であるかを特定できない。
+	 * また、複数個のPreviewクラスを生成し、それらすべてwithoutWaitKeyをtrueに設定すると、キーイベントがどのウィンドウに対して送信されるかは予想できない。
+	 * そのため、1つのウィンドウのみwithoutWaitKeyをtrueに設定し、それ以外のウィンドウをfalseに設定することで一時的にこの問題を回避できる。
+	 */
+	int preview(const cv::Mat& input, uint32_t delay = 1, bool withoutWaitKey = false)
 	{
 		// ウィンドウの表示
 		cv::imshow(windowTitle, input);
@@ -25,6 +46,8 @@ public:
 			// マウスイベントのリスナーの発火
 			for (auto&& func : *((std::vector<std::function<void(int, int, int)>>*)userdata)) func(event, x, y);
 		}, (void*)(&mouseEventListener));
+
+		if (withoutWaitKey) return 0;
 
 		// キー入力の取得
 		int key = cv::waitKey(delay);
@@ -48,5 +71,13 @@ public:
 	void addKeyboardEventListener(const std::function<void(int)>& func)
 	{
 		keyboardEventListener.push_back(func);
+	}
+
+	// 左クリック時のコールバック関数登録
+	void onClick(const std::function<void(int, int)>& func)
+	{
+		addMouseEventListener([func](int event, int x, int y) {
+			if (event == cv::EVENT_LBUTTONDOWN) { func(x, y); }
+		});
 	}
 };

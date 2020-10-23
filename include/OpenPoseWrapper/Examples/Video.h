@@ -5,6 +5,7 @@ class Video
 private:
 	cv::VideoCapture videoCapture;
 	bool play_, needUpdate;
+	cv::Mat buffer;
 
 public:
 	struct FrameInfo{
@@ -37,11 +38,14 @@ public:
 		// 動画を開いていない場合は処理を終了
 		if (!videoCapture.isOpened()) return ret;
 
-		// 一時停止状態ではなく、画面を更新する必要もなければ処理を終了
-		if ((!play_) && (!needUpdate)) return ret;
+		// 一時停止状態かつ、画面を更新する必要がなければ以前取得したフレームを返す
+		if ((!play_) && (!needUpdate)) return buffer;
+		needUpdate = false;
 
 		// 次のフレームを取得
 		videoCapture.read(ret);
+		buffer = ret;
+
 		return ret;
 	}
 

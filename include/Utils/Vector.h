@@ -67,22 +67,22 @@ namespace vt
 		Vector4& operator=(const Vector4& src);
 		bool operator==(const Vector4& src) const;
 		bool operator!=(const Vector4& src) const;
-		Vector4 operator+(const Vector4& src);
-		Vector4 operator+(const double num);
-		Vector4 operator-(const Vector4& src);
-		Vector4 operator-(const double num);
-		Vector4 operator*(const Vector4& src);
-		Vector4 operator*(const double num);
-		Vector4 operator/(const Vector4& src);
-		Vector4 operator/(const double num);
+		Vector4 operator+(const Vector4& src) const;
+		Vector4 operator+(const double num) const;
+		Vector4 operator-(const Vector4& src) const;
+		Vector4 operator-(const double num) const;
+		Vector4 operator*(const Vector4& src) const;
+		Vector4 operator*(const double num) const;
+		Vector4 operator/(const Vector4& src) const;
+		Vector4 operator/(const double num) const;
 		operator cv::Point() const;
 		operator cv::Point2f() const;
 		operator cv::Point2d() const;
-		double length();
-		Vector4 normal();
-		Vector4 worldToScreen(Matrix4 projModelView);
-		Vector4 screenToWorld(Matrix4 proj, double wTmp, double hTmp);
-		double dot(const Vector4& left, const Vector4& right);
+		double length() const;
+		Vector4 normal() const;
+		Vector4 worldToScreen(const Matrix4 projModelView) const;
+		Vector4 screenToWorld(const Matrix4 proj, const double wTmp, const double hTmp) const;
+		double dot(const Vector4& left, const Vector4& right) const;
 		static Vector4 cross(const Vector4& left, const Vector4& right)
 		{
 			return Vector4(
@@ -130,16 +130,22 @@ namespace vt
 			double fx, double fy, double cx, double cy,
 			double k1 = 0.0, double k2 = 0.0, double k3 = 0.0, double k4 = 0.0
 		);
-		Vector4 translate(Vector4 p, double cols, double rows);
-		Vector4 translate(Vector4 p, const cv::Mat& src);
+		Vector4 translate(Vector4 p, double cols, double rows) const;
+		Vector4 translate(Vector4 p, const cv::Mat& src) const;
 		// キャリブレーション後のカメラの水平画角を計算する(余白も含めた画角)
-		double calcCamWFov(double cam_w_fov, double cols, double rows);
-		double calcCamWFov(double cam_w_fov, const cv::Mat& src);
+		double calcCamWFov(double cam_w_fov, double cols, double rows) const;
+		double calcCamWFov(double cam_w_fov, const cv::Mat& src) const;
 		// キャリブレーション後のカメラの垂直画角を計算する(余白も含めた画角)
-		double calcCamHFov(double cam_h_fov, double cols, double rows);
-		double calcCamHFov(double cam_h_fov, const cv::Mat& src);
+		double calcCamHFov(double cam_h_fov, double cols, double rows) const;
+		double calcCamHFov(double cam_h_fov, const cv::Mat& src) const;
 		cv::Mat translateMat(const cv::Mat& src);
 	};
+
+	/**
+	 * このクラスでは画面上の指定された4つの点を長方形になるように引き伸ばす処理を行う
+	 * これにより、カメラの画像を「地面を上から見たような画像」に変換する
+	 * また、カメラの映像が魚眼レンズなどで歪んでいる場合は歪み補正も同時に行うことができる
+	 */
 	class ScreenToGround
 	{
 	private:
@@ -149,6 +155,7 @@ namespace vt
 		double cam_pos_h;  // カメラの地面からの高さ(m)
 		Vector4 p1_, p2_, p3_, p4_;  // カメラキャリブレーション前のスクリーン座標(1点目, 2点目, 3点目, 4点目)
 		Vector4 p1, p2, p3, p4;  // カメラキャリブレーション後のスクリーン座標(1点目, 2点目, 3点目, 4点目)
+		FisheyeToFlat fisheyeToFlat;  // 魚眼レンズの歪み補正を行うクラス
 
 		// 計算により求まるパラメーター
 		double cam_l;  // カメラ座標の原点から画面の中心までの距離(ピクセル単位)
@@ -158,26 +165,91 @@ namespace vt
 		double m_cam_h;  // マーカー空間でのカメラの高さの計算
 
 		void calcParams();
+
 	public:
-		FisheyeToFlat fisheyeToFlat;  // 魚眼レンズの歪み補正を行うクラス
 		ScreenToGround();
+
 		virtual ~ScreenToGround();
+
 		void setParams(
 			double cam_w_tmp, double cam_h_tmp, double cam_h_fov_tmp, double cam_pos_h_tmp,
 			Vector4 p1_tmp, Vector4 p2_tmp, Vector4 p3_tmp, Vector4 p4_tmp
 		);
+
+		/**
+		 * 射影変換に必要なパラメーターを入力する関数
+		 * @param cam_w_tmp, cam_h_tmp 入力画像の解像度
+		 * @param cam_h_fov_tmp カメラの垂直画角(deg)
+		 * @param cam_pos_h_tmp カメラの地面からの高さ(m)
+		 * @param x1, y1 カメラに写っている地面の任意の点1
+		 * @param x2, y2 カメラに写っている地面の任意の点2
+		 * @param x3, y3 カメラに写っている地面の任意の点3
+		 * @param x4, y4 カメラに写っている地面の任意の点4
+		 * @note
+		 * このクラスでは、x1やy1などで指定した4つの点を長方形になるように引き伸ばす処理を行う。
+		 * これにより、カメラの画像を上から見たような画像に変換する。
+		 */
 		void setParams(
 			double cam_w_tmp, double cam_h_tmp, double cam_h_fov_tmp, double cam_pos_h_tmp,
 			double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4
 		);
+
+		/**
+		 * カメラの歪み補正を行うパラメーターを入力する関数
+		 * @param cam_width, cam_heigth カメラキャリブレーションを行った時のカメラの解像度
+		 * @param output_scale 歪み補正後の画像の拡大率
+		 * @param fx, fy カメラ内部パラメータの焦点距離 (ピクセル単位)
+		 * @param cx, cy カメラ内部パラメータの主点位置 (ピクセル単位)
+		 * @param k1, k2, k3, k4 半径方向の歪み係数
+		 * @note
+		 * 焦点距離や主点位置、半径方向の歪み係数については、カメラキャリブレーションで得られた値を入力してください。
+		 * カメラキャリブレーションについては以下のサイトが参考になります。
+		 * http://opencv.jp/opencv-2.1/cpp/camera_calibration_and_3d_reconstruction.html
+		 * 具体的な方法については以下のサイトが参考になります。
+		 * https://medium.com/@kennethjiang/calibrate-fisheye-lens-using-opencv-part-2-13990f1b157f
+		 * 
+		 * Todo: カメラキャリブレーションについての説明をもっと分かりやすくする
+		 */
 		void setCalibration(
 			double cam_width, double cam_heigth, double output_scale,
 			double fx, double fy, double cx, double cy, double k1, double k2, double k3, double k4
 		);
-		Vector4 translate(Vector4 p);
-		void drawAreaLine(cv::Mat& mat, uint8_t mode);
+
+		/**
+		 * 1つの点を座標変換する
+		 * @param p 画像上の任意の座標 (x, y, z, w の内 x, y のみを扱う)
+		 * @return 変換後の座標
+		 */
+		Vector4 translate(Vector4 p) const;
+
+		/**
+		 * 画像を変換する
+		 * @param src 入力する画像
+		 * @param zoom 拡大率
+		 * @param drawLine trueにするとsetParamsで指定した4点に直線を描画を行う
+		 * @return 変換後の画像
+		 */
 		cv::Mat ScreenToGround::translateMat(const cv::Mat& src, float zoom = 1.0f, bool drawLine = false);
+
+		/**
+		 * 座標変換で歪み補正のみを行う
+		 * @param 画像上の任意の座標 (x, y, z, w の内 x, y のみを扱う)
+		 * @return 変換後の座標
+		 */
 		Vector4 ScreenToGround::onlyFlat(Vector4 p);
+
+		/**
+		 * 画像変換で歪み補正のみを行う
+		 * @param 入力する画像
+		 * @return 変換後の画像
+		 */
 		cv::Mat ScreenToGround::onlyFlatMat(const cv::Mat& src);
+
+		/**
+		 * setParamsで指定した4点に直線を描画を行う
+		 * @param mat 入力する画像
+		 * @param mode 0を指定すると歪み補正前の位置に直線を描く 1を指定すると歪み補正後の位置に直線を描く
+		 */
+		void drawAreaLine(cv::Mat& mat, uint8_t mode);
 	};
 };

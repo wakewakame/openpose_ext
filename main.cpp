@@ -1,10 +1,12 @@
 #include <OpenPoseWrapper/MinimumOpenPose.h>
 #include <OpenPoseWrapper/Examples/Video.h>
 #include <OpenPoseWrapper/Examples/Preview.h>
+#include <OpenPoseWrapper/Examples/VideoControllerUI.h>
 #include <OpenPoseWrapper/Examples/PlotInfo.h>
 #include <OpenPoseWrapper/Examples/SqlOpenPose.h>
 #include <OpenPoseWrapper/Examples/Tracking.h>
 #include <OpenPoseWrapper/Examples/PeopleCounter.h>
+#include <Utils/Vector.h>
 
 using People = MinOpenPose::People;
 using Person = MinOpenPose::Person;
@@ -15,7 +17,6 @@ int main(int argc, char* argv[])
 	// 入力する映像ファイルのフルパス
 	// 注意 : このプログラムのファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
 	std::string videoPath = R"(media/video.mp4)";
-	videoPath = R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\58.mp4)";
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
@@ -30,6 +31,9 @@ int main(int argc, char* argv[])
 
 	// プレビューウィンドウを生成するクラス
 	Preview preview("result");
+
+	// 画面のクリックでコンソールに座標を出力する
+	preview.onClick([](int x, int y) { std::cout << x << ", " << y << std::endl; });
 
 	// 骨格などを表示するクラス
 	PlotInfo plot;
@@ -48,6 +52,36 @@ int main(int argc, char* argv[])
 
 	// 通行人をカウントするクラス
 	PeopleCounter count(200, 250, 500, 250, 100);
+
+	// 射影変換をするクラス
+	vt::ScreenToGround screenToGround;
+
+	// カメラの歪みを補正する設定
+	screenToGround.setCalibration(
+		// カメラキャリブレーションを行った時のカメラの解像度, 出力画像の拡大率
+		1920, 1080, 0.5,
+		// カメラ内部パラメータの焦点距離と中心座標(fx, fy, cx, cy)
+		1222.78852772764, 1214.377234799321, 967.8020317677116, 569.3667691760459,
+		// カメラの歪み係数(k1, k2, k3, k4)
+		-0.08809225804249926, 0.03839093574614055, -0.060501971675431955, 0.033162385302275665
+	);
+
+	// カメラの映像を、地面を上から見たような映像に射影変換する
+	screenToGround.setParams(
+		// カメラの解像度
+		1280, 960,
+		// カメラの垂直画角(deg)、カメラの地面からの高さ(m)
+		53.267, 1.0,
+		// カメラに写っている地面の任意の4点
+		348, 656,
+		1056, 669,
+		1001, 243,
+		461, 334
+	);
+
+	// 動画再生のコントロールをUIで行えるようにするクラス
+	VideoControllerUI videoController;
+	videoController.addShortcutKeys(preview, video);
 
 	while (true)
 	{
@@ -79,7 +113,7 @@ int main(int argc, char* argv[])
 		auto tracked_people = tracker.tracking(people, sql, frameInfo.frameNumber).value();
 
 		// 通行人のカウント
-		count.update(tracker, frameInfo.frameNumber);
+		count.update(tracker, frameInfo.frameNumber);		
 
 		// 通行人のカウント状況をプレビュー
 		count.drawInfo(frame, tracker);
@@ -89,38 +123,18 @@ int main(int argc, char* argv[])
 		plot.id(frame, tracked_people);  // フレームレートとフレーム番号の描画
 		plot.frameInfo(frame, video);  // フレームレートとフレーム番号の描画
 
+		// 映像を上から見たように射影変換
+		//frame = screenToGround.translateMat(frame, 0.3f, true);
+
 		// プレビュー
-		int ret = preview.preview(frame, 1);
+		int ret = preview.preview(frame, 10);
+
+		// 動画再生コントローラーの表示
+		videoController.showUI(video);
 
 		// Escキーが押されたら終了する
 		if (0x1b == ret) break;
 	}
-
-	/*
-	// SQL入出力機能の追加
-	auto sql = mop.addEventListener<SqlOpenPoseEvent>(sqlPath, 300);
-
-	// 動画読み込み処理の追加
-	auto video = mop.addEventListener<VideoOpenPoseEvent>(videoPath);
-
-	// 骨格のトラッキング処理の追加
-	auto tracker = mop.addEventListener<TrackingOpenPoseEvent>(sql);
-
-	// 人数カウント処理の追加
-	(void)mop.addEventListener<PeopleCounterOpenPoseEvent>(tracker, 579, 578, 1429, 577, 100.0, true);
-
-	// 出力画像に骨格情報などを描画する処理の追加
-	(void)mop.addEventListener<PlotInfoOpenPoseEvent>(true, true, false);
-
-	// 自分で定義したイベントリスナーの登録
-	auto custom = mop.addEventListener<CustomOpenPoseEvent>();
-
-	// 出力画像のプレビューウィンドウを生成する処理の追加
-	std::shared_ptr<PreviewOpenPoseEvent> preview;
-	preview = mop.addEventListener<PreviewOpenPoseEvent>("result");
-
-	custom->setParams(video, tracker, preview);
-	*/
 
 	return 0;
 }

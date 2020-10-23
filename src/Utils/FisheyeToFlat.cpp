@@ -11,7 +11,7 @@ namespace vt
 		double fx, double fy, double cx, double cy,
 		double k1, double k2, double k3, double k4
 	) {
-		//is_init = true;
+		is_init = true;
 		this->cam_width = cam_width;
 		this->cam_height = cam_height;
 		this->output_scale = output_scale;
@@ -23,7 +23,7 @@ namespace vt
 		this->k4 = k4;
 		change_param = true;
 	}
-	Vector4 FisheyeToFlat::translate(Vector4 p, double cols, double rows) {
+	Vector4 FisheyeToFlat::translate(Vector4 p, double cols, double rows) const {
 		if (!is_init) return p;
 		cv::Mat p_src = (cv::Mat_<cv::Vec2d>(1, 1) << cv::Vec2d(p.x, p.y));
 		cv::Mat p_dst(1, 1, CV_64FC2);
@@ -42,10 +42,10 @@ namespace vt
 		cv::Vec2d result = p_dst.at<cv::Vec2d>(0, 0);
 		return Vector4(result[0], result[1]);
 	}
-	Vector4 FisheyeToFlat::translate(Vector4 p, const cv::Mat& src) {
+	Vector4 FisheyeToFlat::translate(Vector4 p, const cv::Mat& src) const {
 		return translate(p, (double)src.cols, (double)src.rows);
 	}
-	double FisheyeToFlat::calcCamWFov(double cam_w_fov, double cols, double rows) {
+	double FisheyeToFlat::calcCamWFov(double cam_w_fov, double cols, double rows) const {
 		if (!is_init) return cam_w_fov;
 		double cam_w_fov_ = deg2rad(cam_w_fov);
 		double before_width = cols;
@@ -55,10 +55,10 @@ namespace vt
 		double result = 2.0 * std::atan((before_width / after_width) * std::tan(cam_w_fov_ / 2.0));
 		return rad2deg(result);
 	}
-	double FisheyeToFlat::calcCamWFov(double cam_w_fov, const cv::Mat& src) {
+	double FisheyeToFlat::calcCamWFov(double cam_w_fov, const cv::Mat& src) const {
 		return calcCamHFov(cam_w_fov, (double)src.cols, (double)src.rows);
 	}
-	double FisheyeToFlat::calcCamHFov(double cam_h_fov, double cols, double rows) {
+	double FisheyeToFlat::calcCamHFov(double cam_h_fov, double cols, double rows) const {
 		if (!is_init) return cam_h_fov;
 		double cam_h_fov_ = deg2rad(cam_h_fov);
 		double before_height = rows;
@@ -68,7 +68,7 @@ namespace vt
 		double result = 2.0 * std::atan((before_height / after_height) * std::tan(cam_h_fov_ / 2.0));
 		return rad2deg(result);
 	}
-	double FisheyeToFlat::calcCamHFov(double cam_h_fov, const cv::Mat& src) {
+	double FisheyeToFlat::calcCamHFov(double cam_h_fov, const cv::Mat& src) const {
 		return calcCamHFov(cam_h_fov, (double)src.cols, (double)src.rows);
 	}
 	cv::Mat FisheyeToFlat::translateMat(const cv::Mat& src) {
