@@ -1,5 +1,7 @@
 #pragma once
 
+#include <OpenPoseWrapper/MinimumOpenPose.h>
+
 #include <functional>
 #include <vector>
 #include <string>

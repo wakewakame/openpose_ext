@@ -1,50 +1,41 @@
+/*
+
+openpose_ext は OpenPose をよりシンプルに扱えるようにしたライブラリです。
+このライブラリでは、次のような流れでプログラムを実行します。
+
+	1. OpenPose に画像を入力する
+	2. OpenPose から骨格データが返される
+
+また、画像の操作はおおよそ OpenCV で行っています。
+頭に cv:: と付いている関数名や変数名は OpenCV です。
+
+以下のサンプルプログラムは openpose_ext を用いた最小限のプログラムです。
+
+*/
+
 #include <OpenPoseWrapper/MinimumOpenPose.h>
-#include <OpenPoseWrapper/Examples/PreviewOpenPoseEvent.h>
-#include <Utils/Gui.h>
-
-class CustomOpenPoseEvent : public OpenPoseEvent
-{
-public:
-	int init() override final
-	{
-		return 0;
-	}
-	int sendImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
-	{
-		// 500x500の黒色の画像を生成
-		cv::Mat image = cv::Mat::zeros(500, 500, CV_8UC3);
-
-		// 画像に文字を描画
-		gui::text(image, "Hello World", { 20, 20 });
-
-		// openposeの入力用の変数に代入
-		imageInfo.inputImage = image;
-
-		return 0;
-	}
-	int recieveImageInfo(ImageInfo& imageInfo, std::function<void(void)> exit) override final
-	{
-		// 画像に文字を描画
-		gui::text(imageInfo.outputImage, "ABC123", { 20, 50 });
-
-		return 0;
-	}
-};
+#include <Utils/PlotInfo.h>
 
 int main(int argc, char* argv[])
 {
-	// openposeのラッパークラス
-	MinimumOpenPose mop;
+	// OpenPose の初期化をする
+	MinOpenPose mop(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
 
-	// 自分で定義したイベントリスナーを登録する
-	mop.addEventListener<CustomOpenPoseEvent>();
+	// OpenPose に入力する画像を用意する
+	// "media/human.jpg" は入力する画像ファイルのパスを指定する
+	cv::Mat image = cv::imread("media/human.jpg");
 
-	// 出力画像のプレビューウィンドウを生成する処理の追加
-	// Escで終了する
-	mop.addEventListener<PreviewOpenPoseEvent>("example01_HelloWorld");
+	// OpenPose で姿勢推定をする
+	auto people = mop.estimate(image);
 
-	// openposeの起動
-	int ret = mop.startup();
+	// 姿勢推定の結果を image に描画する
+	plotBone(image, people, mop);
 
-	return ret;
+	// できあがった画像を表示する
+	cv::imshow("result", image);
+
+	// キー入力があるまで待機する
+	cv::waitKey(0);
+
+	return 0;
 }

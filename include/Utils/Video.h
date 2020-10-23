@@ -1,5 +1,7 @@
 #pragma once
 
+#include <OpenPoseWrapper/MinimumOpenPose.h>
+
 class Video
 {
 private:

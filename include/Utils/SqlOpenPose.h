@@ -1,5 +1,6 @@
 #pragma once
 
+#include <OpenPoseWrapper/MinimumOpenPose.h>
 #include <Utils/Database.h>
 #include <optional>
 

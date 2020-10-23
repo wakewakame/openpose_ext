@@ -205,6 +205,10 @@ private:
 	std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> getResultsAndReset();
 
 public:
+	/**
+	 * @param poseModel 姿勢推定に用いるモデルを選択する
+	 * @param netInputSize 姿勢推定を行うネットワークの解像度を指定する (片方に-1を指定すると入力される画像のアスペクト比から自動計算される)
+	 */
 	MinOpenPose(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
 	virtual ~MinOpenPose();
 

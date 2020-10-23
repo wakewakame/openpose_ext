@@ -1,7 +1,8 @@
 #pragma once
 
-#include <OpenPoseWrapper/Examples/Video.h>
-#include <OpenPoseWrapper/Examples/Preview.h>
+#include <OpenPoseWrapper/MinimumOpenPose.h>
+#include <Utils/Video.h>
+#include <Utils/Preview.h>
 
 class VideoControllerUI
 {
@@ -122,7 +123,7 @@ public:
 		cv::rectangle(ui, { area.x + 35, area.y + 15, 5, 30 }, { 180, 0, 120 }, -1);
 
 		// 再生位置を表すプログレスバーを表示
-		area = { 0, 60, 360, 60 };
+		area = { 0, 82, 360, 16 };
 		cv::rectangle(ui, { area.x + 30, area.y + (area.height / 2) - 2, area.width - 60, 4 }, { 180, 180, 180 }, -1);
 		if (area.contains(mouse))
 		{
@@ -134,7 +135,6 @@ public:
 			if (isClicked) video.seekAbsolute(frame);
 		}
 		cv::circle(ui, { area.x + 30 + (int)((double)(area.width - 60) * progress), area.y + (area.height / 2) }, 8, { 180, 0, 120 }, -1);
-
 
 		// ウィンドウに描画
 		uiWindow.preview(ui, 0, true);

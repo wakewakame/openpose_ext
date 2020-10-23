@@ -1,11 +1,11 @@
 #include <OpenPoseWrapper/MinimumOpenPose.h>
-#include <OpenPoseWrapper/Examples/Video.h>
-#include <OpenPoseWrapper/Examples/Preview.h>
-#include <OpenPoseWrapper/Examples/VideoControllerUI.h>
-#include <OpenPoseWrapper/Examples/PlotInfo.h>
-#include <OpenPoseWrapper/Examples/SqlOpenPose.h>
-#include <OpenPoseWrapper/Examples/Tracking.h>
-#include <OpenPoseWrapper/Examples/PeopleCounter.h>
+#include <Utils/Video.h>
+#include <Utils/Preview.h>
+#include <Utils/VideoControllerUI.h>
+#include <Utils/PlotInfo.h>
+#include <Utils/SqlOpenPose.h>
+#include <Utils/Tracking.h>
+#include <Utils/PeopleCounter.h>
 #include <Utils/Vector.h>
 
 using People = MinOpenPose::People;
@@ -17,6 +17,8 @@ int main(int argc, char* argv[])
 	// 入力する映像ファイルのフルパス
 	// 注意 : このプログラムのファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
 	std::string videoPath = R"(media/video.mp4)";
+
+	// コンソール引数に動画のファイルパスを指定された場合はそのパスを優先する
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
@@ -35,8 +37,8 @@ int main(int argc, char* argv[])
 	// 画面のクリックでコンソールに座標を出力する
 	preview.onClick([](int x, int y) { std::cout << x << ", " << y << std::endl; });
 
-	// 骨格などを表示するクラス
-	PlotInfo plot;
+	// フレームレートなどを表示するクラス
+	plotFrameInfo plotFrameInfo;
 
 	// SQLファイルの読み込み、書き込みを行うクラス
 	SqlOpenPose sql;
@@ -119,9 +121,9 @@ int main(int argc, char* argv[])
 		count.drawInfo(frame, tracker);
 
 		// 映像の上に骨格を描画
-		plot.bone(frame, mop, tracked_people);  // 骨格を描画
-		plot.id(frame, tracked_people);  // フレームレートとフレーム番号の描画
-		plot.frameInfo(frame, video);  // フレームレートとフレーム番号の描画
+		plotBone(frame, tracked_people, mop);  // 骨格を描画
+		plotId(frame, tracked_people);  // 人のIDの描画
+		plotFrameInfo(frame, video);  // フレームレートとフレーム番号の描画
 
 		// 映像を上から見たように射影変換
 		//frame = screenToGround.translateMat(frame, 0.3f, true);

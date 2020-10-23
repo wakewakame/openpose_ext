@@ -1,6 +1,8 @@
 #pragma once
 
-#include <OpenPoseWrapper/Examples/Tracking.h>
+#include <OpenPoseWrapper/MinimumOpenPose.h>
+#include <Utils/Gui.h>
+#include <Utils/Tracking.h>
 #include <Utils/Database.h>
 #include <Utils/Vector.h>
 

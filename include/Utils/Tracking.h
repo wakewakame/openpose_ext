@@ -1,6 +1,7 @@
 #pragma once
 
-#include <OpenPoseWrapper/Examples/SqlOpenPose.h>
+#include <OpenPoseWrapper/MinimumOpenPose.h>
+#include <Utils/SqlOpenPose.h>
 #include <Utils/Database.h>
 #include <optional>
 
