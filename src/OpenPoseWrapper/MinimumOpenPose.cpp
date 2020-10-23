@@ -2,7 +2,8 @@
 
 MinOpenPose::WUserInputProcessing::WUserInputProcessing(std::mutex& inOutMtx) : inOutMtx(inOutMtx) {}
 
-void MinOpenPose::WUserInputProcessing::initializationOnThread() {
+void MinOpenPose::WUserInputProcessing::initializationOnThread()
+{
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 }
 
@@ -54,13 +55,15 @@ void MinOpenPose::WUserInputProcessing::shutdown()
 	this->stop();
 }
 
-MinOpenPose::WUserOutputProcessing::WUserOutputProcessing(std::mutex& inOutMtx) : inOutMtx(inOutMtx) {
+MinOpenPose::WUserOutputProcessing::WUserOutputProcessing(std::mutex& inOutMtx) : inOutMtx(inOutMtx)
+{
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 	results = std::make_shared<std::vector<std::shared_ptr<op::Datum>>>();
 	assert(static_cast<bool>(results));
 }
 
-void MinOpenPose::WUserOutputProcessing::initializationOnThread() {
+void MinOpenPose::WUserOutputProcessing::initializationOnThread()
+{
 	std::lock_guard<std::mutex> inOutLock(inOutMtx);
 }
 
@@ -120,18 +123,24 @@ int MinOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSize)
 	jobCount = 0;
 	errorMessage.clear();
 	opWrapper = std::make_unique<op::Wrapper>();
+
 	// 使用する骨格モデルの選択
 	wrapperStructPose.poseModel = poseModel;
+
 	// ネットワークの解像度の設定 (16の倍数のみ指定可能, -1は縦横比に合わせて自動計算される)
 	// 値は大きいほど精度が高く、処理も重い
 	wrapperStructPose.netInputSize = netInputSize;
+
 	// OpenPose に設定を適応
 	opWrapper->configure(wrapperStructPose);
+
 	// 画像入力 Worker の設定
 	opWrapper->setWorker(op::WorkerType::Input, opInput, true);
+
 	// 画像出力 Worker の設定
 	opWrapper->setWorker(op::WorkerType::Output, opOutput, true);
-	// OpenPose の実行
+
+	// OpenPose を別スレッドで実行
 	opThread = std::thread([&] {
 		try {
 			opWrapper->exec();
@@ -146,13 +155,13 @@ int MinOpenPose::startup(op::PoseModel poseModel, op::Point<int> netInputSize)
 
 MinOpenPose::People MinOpenPose::estimate(const cv::Mat& inputImage)
 {
-	// 関数が返す予定の値
+	// この関数が返す予定の値
 	People people;
 
 	// 画像が空であれば処理を終了する
 	if (inputImage.empty()) return people;
 
-	// 姿勢推定の開始
+	// OpenPose を実行しているスレッドで姿勢推定が終了するまでループして待つ
 	while (true)
 	{
 		// OpenPose の処理状態の確認

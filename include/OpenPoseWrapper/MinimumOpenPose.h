@@ -8,7 +8,7 @@
 #include <cassert>
 
 /**
- * OpenPose のラッパークラス\n
+ * OpenPose のラッパークラス
  * OpenPose を別スレッドで動かし、 OpenPose の操作を簡単にする
  */
 class MinOpenPose
@@ -22,33 +22,35 @@ private:
 	private:
 		// OpenPose へ入力する画像を格納するキュー
 		std::queue<std::pair<cv::Mat, size_t>> images;
+
 		// 各スレッドを同期させるための mutex
 		std::mutex& inOutMtx;
+
 		// エラーメッセージ配列
 		std::vector<std::string> errorMessage;
 
 	public:
 		/**
 		 * コンストラクタ
-		 * @param inOutMtx 
+		 * @param inOutMtx メンバ関数はOpenPose側のスレッドからも呼び出されるので、同期をとるためにmutexを指定する
 		 */
 		WUserInputProcessing(std::mutex& inOutMtx);
 
 		/**
-		 * メンバ変数の初期化用関数\n
+		 * メンバ変数の初期化用関数
 		 * OpenPose 側で生成されたスレッドから呼び出される
 		 */
 		void initializationOnThread() override;
 
 		/**
-		 * pushImage() で追加された画像を OpenPose に1枚ずつ渡す関数\n
+		 * pushImage() で追加された画像を OpenPose に1枚ずつ渡す関数
 		 * OpenPose 側で生成されたスレッドから呼び出される
 		 * @param datumsPtr OpenPose へ入力される前のデータ
 		 */
 		void work(std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datumsPtr) override;
 
 		/**
-		 * OpenPose に入力する画像を追加する関数\n
+		 * OpenPose に入力する画像を追加する関数
 		 * MinimumOpenPose 側から呼び出される
 		 * @param image 追加する画像 (フォーマット : CV_8UC3)
 		 * @param maxQueueSize 追加できる画像数の上限
@@ -56,7 +58,7 @@ private:
 		int pushImage(const cv::Mat& image, size_t frameNumber, size_t maxQueueSize);
 
 		/**
-		 * エラーを取得する関数\n
+		 * エラーを取得する関数
 		 * MinimumOpenPose 側から呼び出される
 		 * @param errorMessage エラーメッセージが格納される変数
 		 * @param clearError クラス内のエラーメッセージを削除するフラグ
@@ -64,7 +66,7 @@ private:
 		void getErrors(std::vector<std::string>& errorMessage, bool clearErrors);
 
 		/**
-		 * スレッドを停止する関数\n
+		 * スレッドを停止する関数
 		 * MinimumOpenPose 側から呼び出される
 		 */
 		void shutdown();
@@ -86,18 +88,18 @@ private:
 	public:
 		/**
 		 * コンストラクタ
-		 * @param inOutMtx
+		 * @param inOutMtx メンバ関数はOpenPose側のスレッドからも呼び出されるので、同期をとるためにmutexを指定する
 		 */
 		WUserOutputProcessing(std::mutex& inOutMtx);
 
 		/**
-		 * メンバ変数の初期化用関数\n
+		 * メンバ変数の初期化用関数
 		 * OpenPose 側で生成されたスレッドから呼び出される
 		 */
 		void initializationOnThread() override;
 
 		/**
-		 * OpenPose で処理された画像を results キューに追加する関数\n
+		 * OpenPose で処理された画像を results キューに追加する関数
 		 * OpenPose 側で生成されたスレッドから呼び出される
 		 * @param datumsPtr OpenPose から出力されたデータ
 		 */
@@ -114,7 +116,7 @@ private:
 		std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> getResultsAndReset();
 
 		/**
-		 * エラーを取得する関数\n
+		 * エラーを取得する関数
 		 * MinimumOpenPose 側から呼び出される
 		 * @param errorMessage エラーメッセージが格納される変数
 		 * @param clearError クラス内のエラーメッセージを削除するフラグ
@@ -122,7 +124,7 @@ private:
 		void getErrors(std::vector<std::string>& errorMessage, bool clearErrors);
 
 		/**
-		 * スレッドを停止する関数\n
+		 * スレッドを停止する関数
 		 * MinimumOpenPose 側から呼び出される
 		 */
 		void shutdown();
@@ -162,15 +164,15 @@ private:
 	op::WrapperStructPose wrapperStructPose;
 
 	/**
-	 * OpenPose を開始する\n
-	 * 既に OpenPose が開始していた場合は何も変更しない\n
+	 * OpenPose を開始する
+	 * 既に OpenPose が開始していた場合は何も変更しない
 	 * この関数はコンストラクタで呼ばれる
 	 */
 	int startup(op::PoseModel poseModel = op::PoseModel::BODY_25, op::Point<int> netInputSize = op::Point<int>(-1, 368));
 
 	/**
-	 * OpenPose を終了する\n
-	 * 既に OpenPose が終了していた場合は何も変更しない\n
+	 * OpenPose を終了する
+	 * 既に OpenPose が終了していた場合は何も変更しない
 	 * この関数はデストラクタでも呼ばれる
 	 */
 	void shutdown();
@@ -196,7 +198,7 @@ private:
 	ProcessState getProcessState();
 
 	/**
-	 * pushImage() で追加された画像の処理結果を取得し、キューをリセットする関数\n
+	 * pushImage() で追加された画像の処理結果を取得し、キューをリセットする関数
 	 * getProcessState() が ProcessState::Finish を返すときのみ有効
 	 * @return 処理結果
 	 */
