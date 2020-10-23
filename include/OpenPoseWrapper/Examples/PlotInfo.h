@@ -12,8 +12,10 @@ class PlotInfo
 private:
 	using clock = std::chrono::high_resolution_clock;
 	clock::time_point start, end;
-	bool displayInfomation, displayJoints, displayId;
 
+	/**
+	 * 画像の上に骨格を表示する関数
+	 */
 	void renderKeypoints(cv::Mat& cvFrame, const MinOpenPose::People& people, const MinOpenPose& mop)
 	{
 		if (people.size() == 0) return;
@@ -98,13 +100,9 @@ private:
 
 public:
 	/**
-	 * OpenPoseの状態を画像に上書き描画するクラス
-	 * @param displayInfomation フレームレートと動画の再生時間を表示するかどうか
-	 * @param displayJoints 骨格を表示するかどうか
-	 * @param displayId 人のIDを表示するかどうか
+	 * OpenPose の状態を画像に上書き描画するクラス
 	 */
-	PlotInfo(bool displayInfomation, bool displayJoints, bool displayId) :
-		displayInfomation(displayInfomation), displayJoints(displayJoints), displayId(displayId)
+	PlotInfo()
 	{
 		start = clock::now();
 	}

@@ -15,7 +15,7 @@ public:
 	Preview(const std::string windowTitle = "result") : windowTitle(windowTitle){}
 	virtual ~Preview() {};
 
-	int preview(const cv::Mat& input)
+	int preview(const cv::Mat& input, uint32_t delay = 1)
 	{
 		// ウィンドウの表示
 		cv::imshow(windowTitle, input);
@@ -27,7 +27,7 @@ public:
 		}, (void*)(&mouseEventListener));
 
 		// キー入力の取得
-		int key = cv::waitKey(1);
+		int key = cv::waitKey(delay);
 
 		// キーイベントのリスナーの発火
 		if (key != -1)

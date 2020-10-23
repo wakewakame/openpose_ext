@@ -4,7 +4,7 @@
 #include <OpenPoseWrapper/Examples/PlotInfo.h>
 #include <OpenPoseWrapper/Examples/SqlOpenPose.h>
 #include <OpenPoseWrapper/Examples/Tracking.h>
-//#include <OpenPoseWrapper/Examples/PeopleCounterOpenPoseEvent.h>
+#include <OpenPoseWrapper/Examples/PeopleCounter.h>
 
 using People = MinOpenPose::People;
 using Person = MinOpenPose::Person;
@@ -13,9 +13,9 @@ using Node = MinOpenPose::Node;
 int main(int argc, char* argv[])
 {
 	// 入力する映像ファイルのフルパス
-	// 注意 : ファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
+	// 注意 : このプログラムのファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
 	std::string videoPath = R"(media/video.mp4)";
-	//videoPath = R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\58.mp4)";
+	videoPath = R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\58.mp4)";
 	if (argc == 2) videoPath = argv[1];
 
 	// 入出力するsqlファイルのフルパス
@@ -32,19 +32,22 @@ int main(int argc, char* argv[])
 	Preview preview("result");
 
 	// 骨格などを表示するクラス
-	PlotInfo plot(true, true, true);
+	PlotInfo plot;
 
 	// SQLファイルの読み込み、書き込みを行うクラス
 	SqlOpenPose sql;
 	sql.open(sqlPath, 300);
 
-	// トラッキング
-	Tracking tracking(
-		5,  // numberNodesToTrust
-		0.5f,  // confidenceThreshold
-		10,  // numberFramesToLost
-		50.0f  // distanceThreshold
+	// 骨格をトラッキングするクラス
+	Tracking tracker(
+		0.5f,  // 関節の信頼値がこの値以下である場合は、関節が存在しないものとして処理する
+		5,  // 信頼値がconfidenceThresholdより大きい関節の数がこの値未満である場合は、その人がいないものとして処理する
+		10,  // 一度トラッキングが外れた人がこのフレーム数が経過しても再発見されない場合は、消失したものとして処理する
+		50.0f  // トラッキング中の人が1フレーム進んだとき、移動距離がこの値よりも大きい場合は同一人物の候補から外す
 	);
+
+	// 通行人をカウントするクラス
+	PeopleCounter count(200, 250, 500, 250, 100);
 
 	while (true)
 	{
@@ -73,7 +76,13 @@ int main(int argc, char* argv[])
 		}
 
 		// トラッキング
-		auto tracked_people = tracking.tracking(sql, frameInfo.frameNumber, people).value();
+		auto tracked_people = tracker.tracking(people, sql, frameInfo.frameNumber).value();
+
+		// 通行人のカウント
+		count.update(tracker, frameInfo.frameNumber);
+
+		// 通行人のカウント状況をプレビュー
+		count.drawInfo(frame, tracker);
 
 		// 映像の上に骨格を描画
 		plot.bone(frame, mop, tracked_people);  // 骨格を描画
@@ -81,7 +90,7 @@ int main(int argc, char* argv[])
 		plot.frameInfo(frame, video);  // フレームレートとフレーム番号の描画
 
 		// プレビュー
-		int ret = preview.preview(frame);
+		int ret = preview.preview(frame, 1);
 
 		// Escキーが押されたら終了する
 		if (0x1b == ret) break;

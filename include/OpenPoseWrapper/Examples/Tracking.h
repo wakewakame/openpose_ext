@@ -11,11 +11,6 @@ private:
 	using Node = MinOpenPose::Node;
 
 public:
-	uint64_t numberNodesToTrust;
-	float confidenceThreshold;
-	uint64_t numberFramesToLost;
-	float distanceThreshold;
-
 	// (numberFramesToLost - 1)フレーム前から現在のフレームまでの間で検出された最も新しい全ての骨格
 	People currentPeople;
 
@@ -31,14 +26,21 @@ public:
 	// backPeopleには存在するがcurrentPeopleには存在しない人全てのインデックス
 	std::vector<size_t> untrackedPeopleIndex;
 
+	/**
+	 * OpenPoseではフレームごとに人のIDが変動するため、このクラスではOpenPoseで得られた骨格のトラッキングを行う
+	 * @param confidenceThreshold 関節の信頼値がこの値以下である場合は、関節が存在しないものとして処理する
+	 * @param numberNodesToTrust 信頼値がconfidenceThresholdより大きい関節の数がこの値未満である場合は、その人がいないものとして処理する
+	 * @param numberFramesToLost 一度トラッキングが外れた人がこのフレーム数が経過しても再発見されない場合は、消失したものとして処理する
+	 * @param distanceThreshold トラッキング中の人が1フレーム進んだとき、移動距離がこの値よりも大きい場合は同一人物の候補から外す
+	 */
 	Tracking(
-		uint64_t numberNodesToTrust = 5,
 		float confidenceThreshold = 0.5f,
+		uint64_t numberNodesToTrust = 5,
 		uint64_t numberFramesToLost = 10,
 		float distanceThreshold = 50.0f
 	) :
-		numberNodesToTrust{ numberNodesToTrust },
 		confidenceThreshold{ confidenceThreshold },
+		numberNodesToTrust{ numberNodesToTrust },
 		numberFramesToLost{ numberFramesToLost },
 		distanceThreshold{ distanceThreshold },
 		currentPeople{},
@@ -50,7 +52,13 @@ public:
 
 	virtual ~Tracking() {};
 
-	std::optional<People> tracking(SqlOpenPose& sql, const size_t frameNumber, const People& people)
+	/**
+	 * トラッキングを行う
+	 * @param sql SqlOpenPoseのインスタンスを入れる
+	 * @param frameNumber 現在再生中の動画のフレーム番号を指定する
+	 * @param Peopleのインスタンスを入れる
+	 */
+	std::optional<People> tracking(const People& people, SqlOpenPose& sql, const size_t frameNumber)
 	{
 		// people_with_trackingテーブルが存在しない場合はテーブルを生成
 		std::string row_title = u8"frame INTEGER, people INTEGER";
@@ -189,6 +197,18 @@ public:
 	}
 
 private:
+	// 関節の信頼値がこの値以下である場合は、関節が存在しないものとして処理する
+	float confidenceThreshold;
+
+	// 信頼値がconfidenceThresholdより大きい関節の数がこの値未満である場合は、その人がいないものとして処理する
+	uint64_t numberNodesToTrust;
+
+	// 一度トラッキングが外れた人がこのフレーム数が経過しても再発見されない場合は、消失したものとして処理する
+	uint64_t numberFramesToLost;
+
+	// トラッキング中の人が1フレーム進んだとき、移動距離がこの値よりも大きい場合は同一人物の候補から外す
+	float distanceThreshold;
+
 	// SQLに保存されているfirstFrameNumberフレームからendFrameNumberフレームまでの間に検出された最も新しい全ての骨格をpeopleに代入
 	int getLatestPeopleFromSql(const SqlOpenPose& sql, std::map<size_t, std::vector<Node>>& people, int64_t firstFrameNumber, int64_t endFrameNumber)
 	{
