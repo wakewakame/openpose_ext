@@ -3,17 +3,18 @@
 #include <OpenPoseWrapper/MinimumOpenPose.h>
 #include <Utils/Gui.h>
 #include <Utils/Video.h>
+#include <Utils/Tracking.h>
 
 #include <chrono>
 #include <string>
 
 // フレームレートとフレーム番号の描画
-struct plotFrameInfo
+struct PlotFrameInfo
 {
 	using clock = std::chrono::high_resolution_clock;
 	clock::time_point start, end;
-	plotFrameInfo() { start = clock::now(); }
-	void operator() (cv::Mat& frame, const Video& video)
+	PlotFrameInfo() { start = clock::now(); }
+	void plot(cv::Mat& frame, const Video& video)
 	{
 		// フレームが空かを確認する
 		if (frame.empty()) return;
@@ -66,6 +67,59 @@ void plotId(cv::Mat& frame, const MinOpenPose::People& people)
 		gui::text(frame, std::to_string(person->first), p, gui::CENTER_CENTER, 0.7);
 	}
 }
+
+// 軌跡の描画
+struct PlotTrajectory
+{
+	cv::Mat image;
+	MinOpenPose::People backFrame;
+	void plot(cv::Mat& frame, const MinOpenPose::People& people)
+	{
+		// フレームが空かを確認する
+		if (frame.empty()) return;
+
+		// trajectoryとサイズが等しいかを確認する
+		if (
+			image.empty() ||
+			(image.cols != frame.cols) ||
+			(image.rows != frame.rows)
+		)
+		{
+			image = cv::Mat(frame.rows, frame.cols, CV_8UC3, { 0, 0, 0 });
+		}
+
+		for (auto person_itr = people.begin(); person_itr != people.end(); person_itr++)
+		{
+			size_t id = person_itr->first;
+
+			// 1フレーム前に同じIDの人がいない場合はスキップ
+			if (backFrame.count(id) == 0) continue;
+
+			// 現在の骨格情報と1フレーム前の骨格情報
+			MinOpenPose::Person currentPerson = person_itr->second;
+			MinOpenPose::Person backPerson = backFrame[person_itr->first];
+
+			// 現在の骨格情報の重心と1フレーム前の骨格情報の重心
+			MinOpenPose::Node start = Tracking::getJointAverage(currentPerson);
+			MinOpenPose::Node end = Tracking::getJointAverage(backPerson);
+
+			cv::line(
+				image,
+				{ (int)start.x, (int)start.y }, { (int)end.x, (int)end.y },
+				cv::Scalar{
+					(double)((int)((std::sin(((double)id) * 463763.0) + 1.0) * 100000.0) % 120 + 80),
+					(double)((int)((std::sin(((double)id) * 1279.0) + 1.0) * 100000.0) % 120 + 80),
+					(double)((int)((std::sin(((double)id) * 92763.0) + 1.0) * 100000.0) % 120 + 80)
+				},
+				2.0
+			);
+
+			frame += image;
+		}
+		
+		backFrame = people;
+	}
+};
 
 // 骨格の描画
 void plotBone(cv::Mat& cvFrame, const MinOpenPose::People& people, const MinOpenPose& mop)

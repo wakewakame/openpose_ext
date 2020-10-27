@@ -48,8 +48,17 @@ int Database::create(const std::string& path, const int aFlags)
 {
 	try
 	{
-		// sqlファイルの作成
-		database = std::make_shared<SQLite::Database>(toUTF8(path), aFlags);
+		// pathの文字コードが適切でない可能性があるので、tryで失敗した場合はcatchでUTF8に変換してもう一度試してみる
+		try
+		{
+			// sqlファイルの作成
+			database = std::make_shared<SQLite::Database>(path, aFlags);
+		}
+		catch (const std::exception& e)
+		{
+			// sqlファイルの作成
+			database = std::make_shared<SQLite::Database>(toUTF8(path), aFlags);
+		}
 
 		// トランザクションの開始
 		upTransaction = std::make_unique<SQLite::Transaction>(*database);
