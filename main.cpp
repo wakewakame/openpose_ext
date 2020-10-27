@@ -14,127 +14,127 @@ using Node = MinOpenPose::Node;
 
 int main(int argc, char* argv[])
 {
-	// ���͂���f���t�@�C���̃t���p�X
-	// ���� : ���̃v���O�����̃t�@�C���`����CP932�ł͂Ȃ��ꍇ�A�t�@�C���p�X�ɓ��{�ꂪ�������Ă���Ə�肭�����Ȃ��\��������
-	std::string videoPath = R"(C:\Users\�ēc��\Videos\guest002-2020-08-26_09-00-55.mp4)";
+	// 入力する映像ファイルのフルパス
+	// 注意 : このプログラムのファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
+	std::string videoPath = R"(media/video.mp4)";
 
-	// �R���\�[�������ɓ���̃t�@�C���p�X���w�肳�ꂽ�ꍇ�͂��̃p�X��D�悷��
+	// コンソール引数に動画のファイルパスを指定された場合はそのパスを優先する
 	if (argc == 2) videoPath = argv[1];
 
-	// ���o�͂���sql�t�@�C���̃t���p�X
+	// 入出力するsqlファイルのフルパス
 	std::string sqlPath = videoPath + ".sqlite3";
 
-	// openpose�̃��b�p�[�N���X
+	// openposeのラッパークラス
 	MinOpenPose openpose;
 
-	// �����ǂݍ��ރN���X
+	// 動画を読み込むクラス
 	Video video;
 	video.open(videoPath);
 
-	// �v���r���[�E�B���h�E�𐶐�����N���X
+	// プレビューウィンドウを生成するクラス
 	Preview preview("result");
 
-	// ��ʂ̃N���b�N�ŃR���\�[���ɍ��W���o�͂���
+	// 画面のクリックでコンソールに座標を出力する
 	preview.onClick([](int x, int y) { std::cout << x << ", " << y << std::endl; });
 
-	// �t���[�����[�g�Ȃǂ�\������N���X
+	// フレームレートなどを表示するクラス
 	plotFrameInfo plotFrameInfo;
 
-	// SQL�t�@�C���̓ǂݍ��݁A�������݂��s���N���X
+	// SQLファイルの読み込み、書き込みを行うクラス
 	SqlOpenPose sql;
 	sql.open(sqlPath, 300);
 
-	// ���i���g���b�L���O����N���X
+	// 骨格をトラッキングするクラス
 	Tracking tracker(
-		0.5f,  // �֐߂̐M���l�����̒l�ȉ��ł���ꍇ�́A�֐߂����݂��Ȃ����̂Ƃ��ď�������
-		5,     // �M���l��confidenceThreshold���傫���֐߂̐������̒l�����ł���ꍇ�́A���̐l�����Ȃ����̂Ƃ��ď�������
-		10,    // ��x�g���b�L���O���O�ꂽ�l�����̃t���[�������o�߂��Ă��Ĕ�������Ȃ��ꍇ�́A�����������̂Ƃ��ď�������
-		50.0f  // �g���b�L���O���̐l��1�t���[���i�񂾂Ƃ��A�ړ����������̒l�����傫���ꍇ�͓���l���̌�₩��O��
+		0.5f,  // 関節の信頼値がこの値以下である場合は、関節が存在しないものとして処理する
+		5,     // 信頼値がconfidenceThresholdより大きい関節の数がこの値未満である場合は、その人がいないものとして処理する
+		10,    // 一度トラッキングが外れた人がこのフレーム数が経過しても再発見されない場合は、消失したものとして処理する
+		50.0f  // トラッキング中の人が1フレーム進んだとき、移動距離がこの値よりも大きい場合は同一人物の候補から外す
 	);
 
-	// �ʍs�l���J�E���g����N���X
+	// 通行人をカウントするクラス
 	PeopleCounter count(200, 250, 500, 250, 100);
 
-	// �ˉe�ϊ�������N���X
+	// 射影変換をするクラス
 	vt::ScreenToGround screenToGround;
 
-	// �J�����̘c�݂�␳����ݒ�
+	// カメラの歪みを補正する設定
 	screenToGround.setCalibration(
-		// �J�����L�����u���[�V�������s�������̃J�����̉𑜓x, �o�͉摜�̊g�嗦
+		// カメラキャリブレーションを行った時のカメラの解像度, 出力画像の拡大率
 		1920, 1080, 0.5,
-		// �J���������p�����[�^�̏œ_�����ƒ��S���W(fx, fy, cx, cy)
+		// カメラ内部パラメータの焦点距離と中心座標(fx, fy, cx, cy)
 		1222.78852772764, 1214.377234799321, 967.8020317677116, 569.3667691760459,
-		// �J�����̘c�݌W��(k1, k2, k3, k4)
+		// カメラの歪み係数(k1, k2, k3, k4)
 		-0.08809225804249926, 0.03839093574614055, -0.060501971675431955, 0.033162385302275665
 	);
 
-	// �J�����̉f�����A�n�ʂ��ォ�猩���悤�ȉf���Ɏˉe�ϊ�����
+	// カメラの映像を、地面を上から見たような映像に射影変換する
 	screenToGround.setParams(
-		// �J�����̉𑜓x
+		// カメラの解像度
 		1280, 960,
-		// �J�����̐�����p(deg)�A�J�����̒n�ʂ���̍���(m)
+		// カメラの垂直画角(deg)、カメラの地面からの高さ(m)
 		53.267, 1.0,
-		// �J�����Ɏʂ��Ă���n�ʂ̔C�ӂ�4�_
-		147, 44,
-		86, 393,
-		492, 529,
-		635, 199
+		// カメラに写っている地面の任意の4点
+		348, 656,
+		1056, 669,
+		1001, 243,
+		461, 334
 	);
 
-	// ����Đ��̃R���g���[����UI�ōs����悤�ɂ���N���X
+	// 動画再生のコントロールをUIで行えるようにするクラス
 	VideoControllerUI videoController;
 	videoController.addShortcutKeys(preview, video);
 
 	while (true)
 	{
-		// ����̎��̃t���[����ǂݍ���
+		// 動画の次のフレームを読み込む
 		cv::Mat frame = video.next();
 
-		// �t���[���ԍ��Ȃǂ̏����擾����
+		// フレーム番号などの情報を取得する
 		Video::FrameInfo frameInfo = video.getInfo();
 
-		// �t���[�����Ȃ��ꍇ�͏I������
+		// フレームがない場合は終了する
 		if (frame.empty()) break;
 
-		// SQL�Ɏp�����L�^����Ă���΁A���̒l���g��
+		// SQLに姿勢が記録されていれば、その値を使う
 		auto peopleOpt = sql.read(frameInfo.frameNumber);
 		People people;
 		if (peopleOpt) { people = peopleOpt.value(); }
 
-		// SQL�Ɏp�����L�^����Ă��Ȃ���Ύp��������s��
+		// SQLに姿勢が記録されていなければ姿勢推定を行う
 		else
 		{
-			// �p������
+			// 姿勢推定
 			people = openpose.estimate(frame);
 
-			// ���ʂ�SQL�ɕۑ�
+			// 結果をSQLに保存
 			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
 		}
 
-		// �g���b�L���O
+		// トラッキング
 		auto tracked_people = tracker.tracking(people, sql, frameInfo.frameNumber).value();
 
-		// �ʍs�l�̃J�E���g
+		// 通行人のカウント
 		count.update(tracker, frameInfo.frameNumber);		
 
-		// �ʍs�l�̃J�E���g�󋵂��v���r���[
+		// 通行人のカウント状況をプレビュー
 		count.drawInfo(frame, tracker);
 
-		// �f���̏�ɍ��i��`��
-		plotBone(frame, tracked_people, openpose);  // ���i��`��
-		plotId(frame, tracked_people);  // �l��ID�̕`��
-		plotFrameInfo(frame, video);  // �t���[�����[�g�ƃt���[���ԍ��̕`��
+		// 映像の上に骨格を描画
+		plotBone(frame, tracked_people, openpose);  // 骨格を描画
+		plotId(frame, tracked_people);  // 人のIDの描画
+		plotFrameInfo(frame, video);  // フレームレートとフレーム番号の描画
 
-		// �f�����ォ�猩���悤�Ɏˉe�ϊ�
-		frame = screenToGround.translateMat(frame, 0.3f, true);
+		// 映像を上から見たように射影変換
+		//frame = screenToGround.translateMat(frame, 0.3f, true);
 
-		// �v���r���[
+		// プレビュー
 		int ret = preview.preview(frame, 10);
 
-		// ����Đ��R���g���[���[�̕\��
+		// 動画再生コントローラーの表示
 		videoController.showUI(video);
 
-		// Esc�L�[�������ꂽ��I������
+		// Escキーが押されたら終了する
 		if (0x1b == ret) break;
 	}
 
