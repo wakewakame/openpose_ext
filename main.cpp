@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
 	std::string sqlPath = videoPath + ".sqlite3";
 
 	// openposeのラッパークラス
-	MinOpenPose mop;
+	MinOpenPose openpose;
 
 	// 動画を読み込むクラス
 	Video video;
@@ -47,8 +47,8 @@ int main(int argc, char* argv[])
 	// 骨格をトラッキングするクラス
 	Tracking tracker(
 		0.5f,  // 関節の信頼値がこの値以下である場合は、関節が存在しないものとして処理する
-		5,  // 信頼値がconfidenceThresholdより大きい関節の数がこの値未満である場合は、その人がいないものとして処理する
-		10,  // 一度トラッキングが外れた人がこのフレーム数が経過しても再発見されない場合は、消失したものとして処理する
+		5,     // 信頼値がconfidenceThresholdより大きい関節の数がこの値未満である場合は、その人がいないものとして処理する
+		10,    // 一度トラッキングが外れた人がこのフレーム数が経過しても再発見されない場合は、消失したものとして処理する
 		50.0f  // トラッキング中の人が1フレーム進んだとき、移動距離がこの値よりも大きい場合は同一人物の候補から外す
 	);
 
@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
 		else
 		{
 			// 姿勢推定
-			people = mop.estimate(frame);
+			people = openpose.estimate(frame);
 
 			// 結果をSQLに保存
 			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
 		count.drawInfo(frame, tracker);
 
 		// 映像の上に骨格を描画
-		plotBone(frame, tracked_people, mop);  // 骨格を描画
+		plotBone(frame, tracked_people, openpose);  // 骨格を描画
 		plotId(frame, tracked_people);  // 人のIDの描画
 		plotFrameInfo(frame, video);  // フレームレートとフレーム番号の描画
 

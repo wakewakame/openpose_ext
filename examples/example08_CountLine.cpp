@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
 	std::string sqlPath = videoPath + ".sqlite3";
 
 	// OpenPose の初期化をする
-	MinOpenPose mop(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
+	MinOpenPose openpose(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
 
 	// OpenPose に入力する動画を用意する
 	Video video;
@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
 
 	// 通行人をカウントするクラス
 	PeopleCounter count(
-		10, 10,  // 直線の始点座標 (X, Y)
+		10, 10,    // 直線の始点座標 (X, Y)
 		300, 200,  // 直線の終点座標 (X, Y)
 		10         // 直線の太さ
 	);
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 		else
 		{
 			// 姿勢推定
-			people = mop.estimate(image);
+			people = openpose.estimate(image);
 
 			// 結果を SQL に保存
 			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
 		count.drawInfo(image, tracker);
 
 		// 姿勢推定の結果を image に描画する
-		plotBone(image, tracked_people, mop);
+		plotBone(image, tracked_people, openpose);
 
 		// 人のIDの描画
 		plotId(image, tracked_people);  // 人のIDの描画

@@ -2,7 +2,7 @@
 
 OpenPose は画像を1枚ずつ単独で処理します。
 そのため、動画を処理した場合は同一人物の骨格が今と1フレーム後でIDが振りなおされます。
-このサンプルでは、フレーム間で最も移動が少なかった骨格を同一人物とみなしてトラッキングを行います。
+このサンプルでは、フレーム間で最も移動が少なかった骨格を同一人物とみなしてIDのトラッキングを行います。
 
 */
 
@@ -22,8 +22,8 @@ int main(int argc, char* argv[])
 	// 入出力する SQL ファイルのフルパス
 	std::string sqlPath = videoPath + ".sqlite3";
 
-	// OpenPose の初期化をする
-	MinOpenPose mop(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
+	// MinimumOpenPose の初期化をする
+	MinOpenPose openpose(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
 
 	// OpenPose に入力する動画を用意する
 	Video video;
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 		else
 		{
 			// 姿勢推定
-			people = mop.estimate(image);
+			people = openpose.estimate(image);
 
 			// 結果を SQL に保存
 			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 		auto tracked_people = tracker.tracking(people, sql, frameInfo.frameNumber).value();
 
 		// 姿勢推定の結果を image に描画する
-		plotBone(image, tracked_people, mop);
+		plotBone(image, tracked_people, openpose);
 
 		// 人のIDの描画
 		plotId(image, tracked_people);  // 人のIDの描画

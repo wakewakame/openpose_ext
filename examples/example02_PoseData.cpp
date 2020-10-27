@@ -1,6 +1,6 @@
 /*
 
-openpose_ext では MinOpenPose::People というデータ型で骨格情報を扱います。
+MinimumOpenPose では MinOpenPose::People というデータ型で骨格情報を扱います。
 このサンプルでは MinOpenPose::People の扱い方についてを解説します。
 
 */
@@ -12,16 +12,16 @@ openpose_ext では MinOpenPose::People というデータ型で骨格情報を扱います。
 
 int main(int argc, char* argv[])
 {
-	// OpenPose の初期化をする
-	MinOpenPose mop(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
+	// MinimumOpenPose の初期化をする
+	MinOpenPose openpose(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
 
 	// OpenPose に入力する画像を用意する
 	cv::Mat image = cv::imread("media/human.jpg");
 
 	// OpenPose で姿勢推定をする
-	MinOpenPose::People people = mop.estimate(image);
+	MinOpenPose::People people = openpose.estimate(image);
 
-	// ここで OpenPose から people が返される。
+	// ここで OpenPose から people が返された。
 	// people は 画面に映る人すべての骨格情報を持っている。
 	// そのため、今回は映っている人数の数だけループする。
 
@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
 	}
 
 	// 姿勢推定の結果を image に描画する
-	plotBone(image, people, mop);
+	plotBone(image, people, openpose);
 
 	// できあがった画像を表示する
 	cv::imshow("result", image);
@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
 	 
 	補足
 
-	MinOpenPose::People や MinOpenPose::Person などの詳しい中身を見たい場合は宣言や定義を確認すると良いです。
+	MinOpenPose::People や MinOpenPose::Person などの中身を見たい場合は宣言や定義を確認すると良いです。
 	もしこのプログラムを Visual Studio で実行している場合は People の部分を右クリックして「宣言へ移動」や「定義へ移動」などが選択できます。
 	(これらのショートカットキーは F12 と Ctrl+F12 です。)
 	これにより、変数や関数、クラスの中身がどうなっているのかを簡単に確認しに行くことができます。

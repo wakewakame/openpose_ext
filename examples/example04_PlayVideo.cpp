@@ -13,8 +13,8 @@ openpose_ext では画像だけでなく動画の処理も可能です。
 
 int main(int argc, char* argv[])
 {
-	// OpenPose の初期化をする
-	MinOpenPose mop(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
+	// MinimumOpenPose の初期化をする
+	MinOpenPose openpose(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
 
 	// OpenPose に入力する動画を用意する
 	// "media/video.mp4" は入力する動画ファイルのパスを指定する
@@ -38,10 +38,10 @@ int main(int argc, char* argv[])
 		if (image.empty()) break;
 
 		// OpenPose で姿勢推定をする
-		auto people = mop.estimate(image);
+		auto people = openpose.estimate(image);
 
 		// 姿勢推定の結果を image に描画する
-		plotBone(image, people, mop);
+		plotBone(image, people, openpose);
 
 		// 画面を更新する
 		preview.preview(image);

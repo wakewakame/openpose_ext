@@ -29,8 +29,8 @@ int main(int argc, char* argv[])
 	// 入出力する SQL ファイルのフルパス
 	std::string sqlPath = videoPath + ".sqlite3";
 
-	// OpenPose の初期化をする
-	MinOpenPose mop(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
+	// MinimumOpenPose の初期化をする
+	MinOpenPose openpose(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
 
 	// OpenPose に入力する動画を用意する
 	Video video;
@@ -67,14 +67,14 @@ int main(int argc, char* argv[])
 		else
 		{
 			// 姿勢推定
-			people = mop.estimate(image);
+			people = openpose.estimate(image);
 
 			// 結果を SQL に保存
 			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
 		}
 
 		// 姿勢推定の結果を image に描画する
-		plotBone(image, people, mop);
+		plotBone(image, people, openpose);
 
 		// 画面を更新する
 		preview.preview(image);

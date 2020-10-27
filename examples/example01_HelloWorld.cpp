@@ -1,15 +1,10 @@
 /*
 
-openpose_ext は OpenPose をよりシンプルに扱えるようにしたライブラリです。
-このライブラリでは、次のような流れでプログラムを実行します。
-
-	1. OpenPose に画像を入力する
-	2. OpenPose から骨格データが返される
+プログラム中に出てくる MinimumOpenPose は OpenPose をよりシンプルに扱えるようにしたライブラリです。
+以下のサンプルプログラムは MinimumOpenPose を用いた最小限のプログラムです。
 
 また、画像の操作はおおよそ OpenCV で行っています。
-頭に cv:: と付いている関数名や変数名は OpenCV です。
-
-以下のサンプルプログラムは openpose_ext を用いた最小限のプログラムです。
+頭に cv:: と付いている関数名や変数名は OpenCV で定義されているものです。
 
 */
 
@@ -18,18 +13,17 @@ openpose_ext は OpenPose をよりシンプルに扱えるようにしたライブラリです。
 
 int main(int argc, char* argv[])
 {
-	// OpenPose の初期化をする
-	MinOpenPose mop(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
+	// MinimumOpenPose の初期化
+	MinOpenPose openpose(op::PoseModel::BODY_25, op::Point<int>(-1, 368));
 
 	// OpenPose に入力する画像を用意する
-	// "media/human.jpg" は入力する画像ファイルのパスを指定する
 	cv::Mat image = cv::imread("media/human.jpg");
 
 	// OpenPose で姿勢推定をする
-	auto people = mop.estimate(image);
+	auto people = openpose.estimate(image);
 
 	// 姿勢推定の結果を image に描画する
-	plotBone(image, people, mop);
+	plotBone(image, people, openpose);
 
 	// できあがった画像を表示する
 	cv::imshow("result", image);

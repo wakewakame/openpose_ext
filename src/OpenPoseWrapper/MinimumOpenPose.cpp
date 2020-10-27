@@ -241,9 +241,14 @@ MinOpenPose::People MinOpenPose::estimate(const cv::Mat& inputImage)
 
 void MinOpenPose::shutdown()
 {
+	// 既にシャットダウン済みの場合は何もしない
 	if (!isStartup()) return;
+
+	// スレッドを終了する
 	opInput->shutdown();
 	opOutput->shutdown();
+
+	// OpenPoseのスレッドが停止するまで待機
 	opThread.join();
 }
 
