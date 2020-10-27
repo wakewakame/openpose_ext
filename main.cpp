@@ -14,8 +14,10 @@ using Node = MinOpenPose::Node;
 
 int main(int argc, char* argv[])
 {
+	// 関数の戻り値を入れるための一時変数
+	int ret = 0;
+
 	// 入力する映像ファイルのフルパス
-	// 注意 : このプログラムのファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
 	std::string videoPath = R"(C:\Users\柴田研\Videos\guest002-2020-08-26_09-00-55.mp4)";
 
 	// コンソール引数に動画のファイルパスを指定された場合はそのパスを優先する
@@ -38,11 +40,13 @@ int main(int argc, char* argv[])
 	preview.onClick([](int x, int y) { std::cout << x << ", " << y << std::endl; });
 
 	// フレームレートなどを表示するクラス
-	plotFrameInfo plotFrameInfo;
+	PlotFrameInfo plotFrameInfo;
+	PlotTrajectory plotTrajectory;
 
 	// SQLファイルの読み込み、書き込みを行うクラス
 	SqlOpenPose sql;
-	sql.open(sqlPath, 300);
+	ret = sql.open(sqlPath, 300);
+	if (ret) return ret;
 
 	// 骨格をトラッキングするクラス
 	Tracking tracker(
@@ -117,19 +121,25 @@ int main(int argc, char* argv[])
 		// 通行人のカウント
 		count.update(tracker, frameInfo.frameNumber);		
 
+		// 歩行軌跡の描画
+		plotTrajectory.plot(frame, tracked_people);
+
+		// 軌跡のみを表示したウィンドウの表示
+		cv::imshow("trajectory", plotTrajectory.image);
+
 		// 通行人のカウント状況をプレビュー
 		count.drawInfo(frame, tracker);
 
 		// 映像の上に骨格を描画
 		plotBone(frame, tracked_people, openpose);  // 骨格を描画
 		plotId(frame, tracked_people);  // 人のIDの描画
-		plotFrameInfo(frame, video);  // フレームレートとフレーム番号の描画
+		plotFrameInfo.plot(frame, video);  // フレームレートとフレーム番号の描画
 
 		// 映像を上から見たように射影変換
 		frame = screenToGround.translateMat(frame, 0.3f, true);
 
 		// プレビュー
-		int ret = preview.preview(frame, 10);
+		int ret = preview.preview(frame, 1);
 
 		// 動画再生コントローラーの表示
 		videoController.showUI(video);

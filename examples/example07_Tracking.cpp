@@ -44,6 +44,9 @@ int main(int argc, char* argv[])
 		50.0f  // トラッキング中の人が1フレーム進んだとき、移動距離がこの値よりも大きい場合は同一人物の候補から外す
 	);
 
+	// 歩行軌跡を描画するクラス
+	PlotTrajectory trajectory;
+
 	// 動画が終わるまでループする
 	while (true)
 	{
@@ -76,6 +79,9 @@ int main(int argc, char* argv[])
 
 		// トラッキング
 		auto tracked_people = tracker.tracking(people, sql, frameInfo.frameNumber).value();
+
+		// 歩行軌跡を image に描画する
+		trajectory.plot(image, tracked_people);
 
 		// 姿勢推定の結果を image に描画する
 		plotBone(image, tracked_people, openpose);
