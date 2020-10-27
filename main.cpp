@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 {
 	// 入力する映像ファイルのフルパス
 	// 注意 : このプログラムのファイル形式がCP932ではない場合、ファイルパスに日本語が混じっていると上手く動かない可能性がある
-	std::string videoPath = R"(media/video.mp4)";
+	std::string videoPath = R"(C:\Users\柴田研\Videos\guest002-2020-08-26_09-00-55.mp4)";
 
 	// コンソール引数に動画のファイルパスを指定された場合はそのパスを優先する
 	if (argc == 2) videoPath = argv[1];
@@ -75,10 +75,10 @@ int main(int argc, char* argv[])
 		// カメラの垂直画角(deg)、カメラの地面からの高さ(m)
 		53.267, 1.0,
 		// カメラに写っている地面の任意の4点
-		348, 656,
-		1056, 669,
-		1001, 243,
-		461, 334
+		147, 44,
+		86, 393,
+		492, 529,
+		635, 199
 	);
 
 	// 動画再生のコントロールをUIで行えるようにするクラス
@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
 		plotFrameInfo(frame, video);  // フレームレートとフレーム番号の描画
 
 		// 映像を上から見たように射影変換
-		//frame = screenToGround.translateMat(frame, 0.3f, true);
+		frame = screenToGround.translateMat(frame, 0.3f, true);
 
 		// プレビュー
 		int ret = preview.preview(frame, 10);
