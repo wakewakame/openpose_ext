@@ -19,6 +19,7 @@ int main(int argc, char* argv[])
 
 	// 入力する映像ファイルのフルパス
 	std::string videoPath = R"(media/video.mp4)";
+	videoPath = R"(E:\Videos\2020-08-16\guest003-2020-08-16_11-01-15.mp4)";
 
 	// コンソール引数に動画のファイルパスを指定された場合はそのパスを優先する
 	if (argc == 2) videoPath = argv[1];
@@ -32,6 +33,7 @@ int main(int argc, char* argv[])
 	// 動画を読み込むクラス
 	Video video;
 	video.open(videoPath);
+	video.seekAbsolute(18618 *10);
 
 	// プレビューウィンドウを生成するクラス
 	Preview preview("result");
@@ -79,10 +81,10 @@ int main(int argc, char* argv[])
 		// カメラの垂直画角(deg)、カメラの地面からの高さ(m)
 		53.267, 1.0,
 		// カメラに写っている地面の任意の4点
-		348, 656,
-		1056, 669,
-		1001, 243,
-		461, 334
+		537, 601,
+		1077, 624,
+		1047, 276,
+		598, 246
 	);
 
 	// 動画再生のコントロールをUIで行えるようにするクラス
@@ -94,8 +96,13 @@ int main(int argc, char* argv[])
 		// 動画の次のフレームを読み込む
 		cv::Mat frame = video.next();
 
+		// 180度回転する
+		//cv::rotate(frame, frame, cv::ROTATE_180);
+
 		// フレーム番号などの情報を取得する
 		Video::FrameInfo frameInfo = video.getInfo();
+
+		if (frameInfo.frameNumber == 187203) video.pause();
 
 		// フレームがない場合は終了する
 		if (frame.empty()) break;
@@ -106,7 +113,7 @@ int main(int argc, char* argv[])
 		if (peopleOpt) { people = peopleOpt.value(); }
 
 		// SQLに姿勢が記録されていなければ姿勢推定を行う
-		else
+		//else
 		{
 			// 姿勢推定
 			people = openpose.estimate(frame);
@@ -136,7 +143,10 @@ int main(int argc, char* argv[])
 		plotFrameInfo.plot(frame, video);  // フレームレートとフレーム番号の描画
 
 		// 映像を上から見たように射影変換
-		//frame = screenToGround.translateMat(frame, 0.3f, true);
+		auto frame2 = screenToGround.translateMat(frame, 0.3f, true);
+		auto frame3 = screenToGround.translateMat(plotTrajectory.image, 0.3f, true);
+		cv::imshow("frame2", frame2);
+		cv::imshow("frame3", frame3);
 
 		// プレビュー
 		int ret = preview.preview(frame, 1);
