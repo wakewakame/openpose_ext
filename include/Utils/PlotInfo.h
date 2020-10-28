@@ -113,9 +113,9 @@ struct PlotTrajectory
 				},
 				2.0
 			);
-
-			frame += image;
 		}
+
+		frame += image;
 		
 		backFrame = people;
 	}

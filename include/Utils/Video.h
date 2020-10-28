@@ -41,14 +41,14 @@ public:
 		if (!videoCapture.isOpened()) return ret;
 
 		// 一時停止状態かつ、画面を更新する必要がなければ以前取得したフレームを返す
-		if ((!play_) && (!needUpdate)) return buffer;
+		if ((!play_) && (!needUpdate)) return buffer.clone();
 		needUpdate = false;
 
 		// 次のフレームを取得
 		videoCapture.read(ret);
 		buffer = ret;
 
-		return ret;
+		return ret.clone();
 	}
 
 	// 動画の再生状態を取得
