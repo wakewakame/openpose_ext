@@ -17,6 +17,7 @@ private:
     size_t saveCountDown = 1;
 
     using People = MinOpenPose::People;
+    using Node = MinOpenPose::Node;
 
 public:
     SqlOpenPose() {}
@@ -76,7 +77,7 @@ public:
         return 0;
     }
 
-    std::optional<People> read(const size_t frameNumber)
+    std::optional<People> readBones(const size_t frameNumber)
     {
         try
         {
@@ -113,7 +114,7 @@ public:
         return std::nullopt;
     }
 
-    int write(const size_t frameNumber, const size_t frameTimeStamp, const People& people)
+    int writeBones(const size_t frameNumber, const size_t frameTimeStamp, const People& people)
     {
         try
         {
@@ -155,7 +156,87 @@ public:
                 commit();
             }
         }
-        catch (const std::exception& e) {
+        catch (const std::exception& e)
+        {
+            std::cout << "error : " << __FILE__ << " : L" << __LINE__ << "\n" << e.what() << std::endl;
+            return 1;
+        }
+
+        return 0;
+    }
+
+    std::map<size_t, Node> readPoints(const std::string& tableName, const size_t frameNumber)
+    {
+        std::map<size_t, Node> result;
+        
+        try
+        {
+            // SQLにテーブルが存在した場合
+            if (isDataExist("sqlite_master", "type", "name", "table", tableName))
+            {
+                // 指定されたフレーム番号に映る人すべての骨格の重心を検索する
+                SQLite::Statement peopleQuery(*database, u8"SELECT * FROM " + tableName + u8" WHERE frame=?");
+                peopleQuery.bind(1, (long long)frameNumber);
+                while (peopleQuery.executeStep())
+                {
+                    size_t index = (size_t)peopleQuery.getColumn(1).getInt64();
+                    float x = (float)peopleQuery.getColumn(2).getDouble();
+                    float y = (float)peopleQuery.getColumn(2).getDouble();
+                    result[index] = Node{ x, y, 0.0 };
+                }
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << u8"error : " << __FILE__ << u8" : L" << __LINE__ << u8"\n" << e.what() << std::endl;
+        }
+
+        // SQL上に指定されたフレームが記録されていない場合、もしくはエラーが起きた場合はnulloptを返す
+        return result;
+    }
+
+    int writePoints(const std::string& tableName, const size_t frameNumber, const std::map<size_t, Node> points)
+    {
+        try
+        {
+            // テーブルが存在しない場合はテーブルを生成
+            std::string row_title = u8"frame INTEGER, people INTEGER, x REAL, y REAL";
+            if (createTableIfNoExist(tableName, row_title)) return 1;
+
+            // SQLの検索を高速化するためにIndexを作成
+            if (createIndexIfNoExist(tableName, u8"frame", false)) return 1;
+            if (createIndexIfNoExist(tableName, u8"people", false)) return 1;
+            if (createIndexIfNoExist(tableName, u8"frame", u8"people", true)) return 1;
+
+            // SQL文の生成
+            SQLite::Statement deleteQuery(*database, u8"DELETE FROM " + tableName + u8" WHERE frame=?");
+            SQLite::Statement insertQuery(*database, u8"INSERT INTO " + tableName + u8" VALUES (?, ?, ?, ?)");
+
+            // 既にデータがあった場合は上書きするために削除
+            deleteQuery.reset();
+            deleteQuery.bind(1, (long long)frameNumber);
+            (void)deleteQuery.exec();
+
+            // 現在のフレームの情報をSQLに追記
+            for (auto pointItr = points.begin(); pointItr != points.end(); pointItr++)
+            {
+                insertQuery.reset();
+                insertQuery.bind(1, (long long)frameNumber);
+                insertQuery.bind(2, (long long)pointItr->first);
+                insertQuery.bind(3, (double)pointItr->second.x);
+                insertQuery.bind(4, (double)pointItr->second.y);
+                (void)insertQuery.exec();
+            }
+
+            // sqlのコミット
+            if ((saveFreq > 0) && (--saveCountDown <= 0))
+            {
+                saveCountDown = saveFreq;
+                commit();
+            }
+        }
+        catch (const std::exception& e)
+        {
             std::cout << "error : " << __FILE__ << " : L" << __LINE__ << "\n" << e.what() << std::endl;
             return 1;
         }

@@ -72,8 +72,8 @@ void plotId(cv::Mat& frame, const MinOpenPose::People& people)
 struct PlotTrajectory
 {
 	cv::Mat image;
-	MinOpenPose::People backFrame;
-	void plot(cv::Mat& frame, const MinOpenPose::People& people)
+	std::map<size_t, MinOpenPose::Node> back;
+	void plot(cv::Mat& frame, const std::map<size_t, MinOpenPose::Node>& peoplePoint)
 	{
 		// フレームが空かを確認する
 		if (frame.empty()) return;
@@ -88,20 +88,16 @@ struct PlotTrajectory
 			image = cv::Mat(frame.rows, frame.cols, CV_8UC3, { 0, 0, 0 });
 		}
 
-		for (auto person_itr = people.begin(); person_itr != people.end(); person_itr++)
+		for (auto person_itr = peoplePoint.begin(); person_itr != peoplePoint.end(); person_itr++)
 		{
 			size_t id = person_itr->first;
 
 			// 1フレーム前に同じIDの人がいない場合はスキップ
-			if (backFrame.count(id) == 0) continue;
+			if (back.count(id) == 0) continue;
 
-			// 現在の骨格情報と1フレーム前の骨格情報
-			MinOpenPose::Person currentPerson = person_itr->second;
-			MinOpenPose::Person backPerson = backFrame[person_itr->first];
-
-			// 現在の骨格情報の重心と1フレーム前の骨格情報の重心
-			MinOpenPose::Node start = Tracking::getJointAverage(currentPerson);
-			MinOpenPose::Node end = Tracking::getJointAverage(backPerson);
+			// 現在の骨格情報と1フレーム前の骨格の重心
+			MinOpenPose::Node start = person_itr->second;
+			MinOpenPose::Node end = back[person_itr->first];
 
 			cv::line(
 				image,
@@ -117,7 +113,7 @@ struct PlotTrajectory
 
 		frame += image;
 		
-		backFrame = people;
+		back = peoplePoint;
 	}
 };
 

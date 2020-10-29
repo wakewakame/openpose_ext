@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
 
 	// 入力する映像ファイルのフルパス
 	std::string videoPath = R"(media/video.mp4)";
-	videoPath = R"(E:\Videos\2020-08-16\guest003-2020-08-16_11-01-15.mp4)";
+	videoPath = R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\out2.mp4)";
 
 	// コンソール引数に動画のファイルパスを指定された場合はそのパスを優先する
 	if (argc == 2) videoPath = argv[1];
@@ -32,8 +32,8 @@ int main(int argc, char* argv[])
 
 	// 動画を読み込むクラス
 	Video video;
-	video.open(videoPath);
-	video.seekAbsolute(18618 *10);
+	ret = video.open(videoPath);
+	if (ret) return ret;
 
 	// プレビューウィンドウを生成するクラス
 	Preview preview("result");
@@ -78,13 +78,13 @@ int main(int argc, char* argv[])
 	screenToGround.setParams(
 		// カメラの解像度
 		1280, 960,
-		// カメラの垂直画角(deg)、カメラの地面からの高さ(m)
-		53.267, 1.0,
-		// カメラに写っている地面の任意の4点
-		537, 601,
-		1077, 624,
+		// カメラに写っている地面の任意の4点 (左上、右上、右下、左下)
+		598, 246,
 		1047, 276,
-		598, 246
+		1077, 624,
+		537, 601,
+		// 上記の4点のうち、1点目から2点目までの長さと、2点目から3点目までの長さ (単位は任意)
+		2.334, 1.800
 	);
 
 	// 動画再生のコントロールをUIで行えるようにするクラス
@@ -97,42 +97,47 @@ int main(int argc, char* argv[])
 		cv::Mat frame = video.next();
 
 		// 180度回転する
-		//cv::rotate(frame, frame, cv::ROTATE_180);
+		cv::rotate(frame, frame, cv::ROTATE_180);
 
 		// フレーム番号などの情報を取得する
 		Video::FrameInfo frameInfo = video.getInfo();
-
-		if (frameInfo.frameNumber == 187203) video.pause();
 
 		// フレームがない場合は終了する
 		if (frame.empty()) break;
 
 		// SQLに姿勢が記録されていれば、その値を使う
-		auto peopleOpt = sql.read(frameInfo.frameNumber);
+		auto peopleOpt = sql.readBones(frameInfo.frameNumber);
 		People people;
 		if (peopleOpt) { people = peopleOpt.value(); }
 
 		// SQLに姿勢が記録されていなければ姿勢推定を行う
-		//else
+		else
 		{
 			// 姿勢推定
 			people = openpose.estimate(frame);
 
 			// 結果をSQLに保存
-			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
+			sql.writeBones(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
 		}
 
 		// トラッキング
 		auto tracked_people = tracker.tracking(people, sql, frameInfo.frameNumber).value();
 
-		// 通行人のカウント
-		count.update(tracker, frameInfo.frameNumber);		
 
-		// 歩行軌跡の描画
-		plotTrajectory.plot(frame, tracked_people);
+		// 全ての骨格の重心を求める
+		auto peoplePoint = Tracking::getJointAverages(tracked_people);
 
-		// 軌跡のみを表示したウィンドウの表示
-		cv::imshow("trajectory", plotTrajectory.image);
+		// スクリーン座標を現実座標に変換
+		auto convertedPoint = peoplePoint;
+		for (auto personItr = convertedPoint.begin(); personItr != convertedPoint.end(); personItr++)
+		{
+			cv::Point2f p{ personItr->second.x, personItr->second.y };
+			p = screenToGround.translate(p);
+			personItr->second = Node{(float)p.x, (float)p.y};
+		}
+
+		// 現実座標での軌跡を保存
+		sql.writePoints("trajectory", frameInfo.frameNumber, convertedPoint);
 
 		// 通行人のカウント状況をプレビュー
 		count.drawInfo(frame, tracker);
@@ -144,9 +149,16 @@ int main(int argc, char* argv[])
 
 		// 映像を上から見たように射影変換
 		auto frame2 = screenToGround.translateMat(frame, 0.3f, true);
-		auto frame3 = screenToGround.translateMat(plotTrajectory.image, 0.3f, true);
-		cv::imshow("frame2", frame2);
-		cv::imshow("frame3", frame3);
+		auto plotPoint = convertedPoint;
+		for (auto personItr = plotPoint.begin(); personItr != plotPoint.end(); personItr++)
+		{
+			cv::Point2f p{ personItr->second.x, personItr->second.y };
+			p = screenToGround.plot(p, frame, 0.3f);
+			personItr->second = Node{ (float)p.x, (float)p.y };
+		}
+		plotTrajectory.plot(frame2, plotPoint);
+		cv::imshow("screen to ground", frame2);
+		cv::imshow("trajectory", plotTrajectory.image);
 
 		// プレビュー
 		int ret = preview.preview(frame, 1);

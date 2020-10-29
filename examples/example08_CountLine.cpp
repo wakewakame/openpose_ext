@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 		Video::FrameInfo frameInfo = video.getInfo();
 
 		// SQLに姿勢が記録されていれば、その値を使う
-		auto peopleOpt = sql.read(frameInfo.frameNumber);
+		auto peopleOpt = sql.readBones(frameInfo.frameNumber);
 		MinOpenPose::People people;
 		if (peopleOpt)
 		{
@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
 			people = openpose.estimate(image);
 
 			// 結果を SQL に保存
-			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
+			sql.writeBones(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
 		}
 
 		// トラッキング

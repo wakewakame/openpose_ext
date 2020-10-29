@@ -84,9 +84,9 @@ public:
 				{ (int)firstPosition.x, (int)firstPosition.y },
 				{ (int)currentPosition.x, (int)currentPosition.y },
 				cv::Scalar{
-					(double)((int)((std::sin(((double)index) * 463763.0) + 1.0) * 100000.0) % 120 + 80),
-					(double)((int)((std::sin(((double)index) * 1279.0) + 1.0) * 100000.0) % 120 + 80),
-					(double)((int)((std::sin(((double)index) * 92763.0) + 1.0) * 100000.0) % 120 + 80)
+					(float)((int)((std::sin(((float)index) * 463763.0) + 1.0) * 100000.0) % 120 + 80),
+					(float)((int)((std::sin(((float)index) * 1279.0) + 1.0) * 100000.0) % 120 + 80),
+					(float)((int)((std::sin(((float)index) * 92763.0) + 1.0) * 100000.0) % 120 + 80)
 				}, 2.0
 			);
 		}
@@ -126,14 +126,14 @@ private:
 	enum class Event { UP, DOWN, NOTHING };
 
 	// p1Startからp1Endまでを結ぶ直線とp2Startからp2Endまでを結ぶ直線が交差しているかどうかを取得
-	bool isCross(vt::Vector4& p1Start, vt::Vector4& p1End, vt::Vector4& p2Start, vt::Vector4& p2End) const
+	bool isCross(cv::Point2f& p1Start, cv::Point2f& p1End, cv::Point2f& p2Start, cv::Point2f& p2End) const
 	{
 		// p1Startからp1Endへの直線とp2Startからp2Endへの直線が交差しているかどうかを求める
 		// 参考 : https://imagingsolution.blog.fc2.com/blog-entry-137.html
-		double s1 = ((p2End.x - p2Start.x) * (p1Start.y - p2Start.y) - (p2End.y - p2Start.y) * (p1Start.x - p2Start.x)) / 2.0;
-		double s2 = ((p2End.x - p2Start.x) * (p2Start.y - p1End.y) - (p2End.y - p2Start.y) * (p2Start.x - p1End.x)) / 2.0;
+		float s1 = ((p2End.x - p2Start.x) * (p1Start.y - p2Start.y) - (p2End.y - p2Start.y) * (p1Start.x - p2Start.x)) / 2.0;
+		float s2 = ((p2End.x - p2Start.x) * (p2Start.y - p1End.y) - (p2End.y - p2Start.y) * (p2Start.x - p1End.x)) / 2.0;
 		if (s1 + s2 == 0.0) return false;
-		double p = s1 / (s1 + s2);
+		float p = s1 / (s1 + s2);
 		return (0.0 <= p && p <= 1.0);
 	}
 
@@ -143,10 +143,10 @@ private:
 	{
 		auto startPos = Tracking::getJointAverage(peopleStart);  // 歩行者のトラッキングを開始した点
 		auto endPos = Tracking::getJointAverage(peopleEnd);  // 歩行者のトラッキングを終了した点
-		auto vecLine = vt::Vector4((double)line.lineEndX - (double)line.lineStartX, (double)line.lineEndY - (double)line.lineStartY);  // 人数カウントを行う基準線のベクトル
-		auto vecStart = vt::Vector4((double)startPos.x - (double)line.lineStartX, (double)startPos.y - (double)line.lineStartY);  // 人数カウントを行う基準線の始点からstartPosへのベクトル
-		auto vecEnd = vt::Vector4((double)endPos.x - (double)line.lineStartX, (double)endPos.y - (double)line.lineStartY);  // 人数カウントを行う基準線の始点からvecEndへのベクトル
-		if (!isCross(vt::Vector4(0.0, 0.0), vecLine, vecStart, vecEnd)) return Event::NOTHING;  // startからendを結ぶ直線がvecLineの上を通過していない場合
+		auto vecLine = cv::Point2f((float)line.lineEndX - (float)line.lineStartX, (float)line.lineEndY - (float)line.lineStartY);  // 人数カウントを行う基準線のベクトル
+		auto vecStart = cv::Point2f((float)startPos.x - (float)line.lineStartX, (float)startPos.y - (float)line.lineStartY);  // 人数カウントを行う基準線の始点からstartPosへのベクトル
+		auto vecEnd = cv::Point2f((float)endPos.x - (float)line.lineStartX, (float)endPos.y - (float)line.lineStartY);  // 人数カウントを行う基準線の始点からvecEndへのベクトル
+		if (!isCross(cv::Point2f(0.0, 0.0), vecLine, vecStart, vecEnd)) return Event::NOTHING;  // startからendを結ぶ直線がvecLineの上を通過していない場合
 		// 「vecLineを90度回転させた線」と「vecStart」との内積をもとに、startPosがvecLineの上側にあるかどうかを判定
 		bool startIsUp = vecStart.x * vecLine.y > vecStart.y * vecLine.x;
 		// 「vecLineを90度回転させた線」と「vecEnd」との内積をもとに、endPosがvecLineの上側にあるかどうかを判定
