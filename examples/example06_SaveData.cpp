@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
 		Video::FrameInfo frameInfo = video.getInfo();
 
 		// SQL‚Ép¨‚ª‹L˜^‚³‚ê‚Ä‚¢‚ê‚ÎA‚»‚Ì’l‚ğg‚¤
-		auto peopleOpt = sql.read(frameInfo.frameNumber);
+		auto peopleOpt = sql.readBones(frameInfo.frameNumber);
 		MinOpenPose::People people;
 		if (peopleOpt)
 		{
@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 			people = openpose.estimate(image);
 
 			// Œ‹‰Ê‚ğ SQL ‚É•Û‘¶
-			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
+			sql.writeBones(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
 		}
 
 		// p¨„’è‚ÌŒ‹‰Ê‚ğ image ‚É•`‰æ‚·‚é

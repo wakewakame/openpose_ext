@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 		Video::FrameInfo frameInfo = video.getInfo();
 
 		// SQLに姿勢が記録されていれば、その値を使う
-		auto peopleOpt = sql.read(frameInfo.frameNumber);
+		auto peopleOpt = sql.readBones(frameInfo.frameNumber);
 		MinOpenPose::People people;
 		if (peopleOpt)
 		{
@@ -74,20 +74,21 @@ int main(int argc, char* argv[])
 			people = openpose.estimate(image);
 
 			// 結果を SQL に保存
-			sql.write(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
+			sql.writeBones(frameInfo.frameNumber, frameInfo.frameTimeStamp, people);
 		}
 
 		// トラッキング
-		auto tracked_people = tracker.tracking(people, sql, frameInfo.frameNumber).value();
+		auto trackedPeople = tracker.tracking(people, sql, frameInfo.frameNumber).value();
 
 		// 歩行軌跡を image に描画する
-		trajectory.plot(image, tracked_people);
+		auto trackedPoints = tracker.getJointAverages(trackedPeople);
+		trajectory.plot(image, trackedPoints);
 
 		// 姿勢推定の結果を image に描画する
-		plotBone(image, tracked_people, openpose);
+		plotBone(image, trackedPeople, openpose);
 
 		// 人のIDの描画
-		plotId(image, tracked_people);  // 人のIDの描画
+		plotId(image, trackedPeople);  // 人のIDの描画
 
 		// 画面を更新する
 		preview.preview(image);

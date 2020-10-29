@@ -54,6 +54,15 @@ public:
 	virtual ~Tracking() {};
 
 	/**
+	 * トラッキングに使用するテーブルを削除する
+	 * @param sql SqlOpenPoseのインスタンスを入れる
+	 */
+	int deleteTable(SqlOpenPose& sql)
+	{
+		sql.deleteTableIfExist(u8"people_with_tracking");
+	}
+
+	/**
 	 * トラッキングを行う
 	 * @param sql SqlOpenPoseのインスタンスを入れる
 	 * @param frameNumber 現在再生中の動画のフレーム番号を指定する
@@ -178,7 +187,7 @@ public:
 	}
 
 	// 骨格の重心を取得する
-	static Node getJointAverage(const std::vector<Node>& person)
+	static Node getJointAverage(const MinOpenPose::Person& person)
 	{
 		Node result{ 0.0f, 0.0f, 1.0f };
 		float confidenceSum = 0.0f;
@@ -194,6 +203,21 @@ public:
 		if (confidenceSum == 0.0f) return Node{ 0.0f, 0.0f, 0.0f };
 		result.x /= confidenceSum;
 		result.y /= confidenceSum;
+		return result;
+	}
+
+	// 骨格のmapを骨格の重心のmapに変換する
+	static std::map<size_t, Node> getJointAverages(const People& people)
+	{
+		std::map<size_t, Node> result;
+
+		// 全ての骨格分ループ
+		for (auto personItr = people.begin(); personItr != people.end(); personItr++)
+		{
+			// 骨格の重心を求めてresultに追加
+			result[personItr->first] = getJointAverage(personItr->second);
+		}
+
 		return result;
 	}
 
