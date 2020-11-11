@@ -140,3 +140,21 @@ foreach(EXAMPLE_FILE IN ITEMS ${ALL_EXAMPLE_FILES})
 	target_link_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/OPT:REF>)
 	target_link_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/OPT:ICF>)
 endforeach()
+
+# そのほかのプログラムの作成
+file(GLOB_RECURSE ALL_EXAMPLE_FILES "${CMAKE_SOURCE_DIR}/others/*.cpp")
+foreach(EXAMPLE_FILE IN ITEMS ${ALL_EXAMPLE_FILES})
+	get_filename_component(EXAMPLE_NAME ${EXAMPLE_FILE} NAME_WE)
+	add_executable("${EXAMPLE_NAME}" "${EXAMPLE_FILE}" "${ALL_CPP_FILES}")
+	target_include_directories("${EXAMPLE_NAME}" PRIVATE
+		"${CMAKE_SOURCE_DIR}/include"
+		"${OPENPOSE_DIR_PATH}/openpose/include"
+	)
+	target_link_libraries("${EXAMPLE_NAME}" ${OPENPOSE_LIB_FILES})
+	target_link_libraries("${EXAMPLE_NAME}" SQLiteCpp)
+	set_target_properties("${EXAMPLE_NAME}" PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${EXAMPLE_NAME}>")
+	target_compile_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/Zi>)
+	target_link_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/DEBUG>)
+	target_link_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/OPT:REF>)
+	target_link_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/OPT:ICF>)
+endforeach()

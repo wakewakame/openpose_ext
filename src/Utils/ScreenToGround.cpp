@@ -83,19 +83,13 @@ namespace vt
 	}
 	cv::Mat ScreenToGround::translateMat(const cv::Mat& src, float zoom, bool drawLine)
 	{
-		cv::Point2f reso{ (float)src.cols, (float)src.rows};
-		float rate = (rect_size.x / rect_size.y) / (reso.x / reso.y);
-		float scale = (rate > 1.0f) ? (reso.x / rect_size.x) : (reso.y / rect_size.y);
-		scale *= zoom;
-		cv::Point2f rect_size_ = rect_size * scale;
-
 		// ìßéãïœä∑çsóÒÇãÅÇﬂÇÈ
 		std::vector<cv::Point2f> srcPoint = { p1, p2, p3, p4 };
 		std::vector<cv::Point2f> dstPoint = {
-			cv::Point2f{ reso.x * 0.5f - rect_size_.x * 0.5f, reso.y * 0.5f - rect_size_.y * 0.5f },
-			cv::Point2f{ reso.x * 0.5f + rect_size_.x * 0.5f, reso.y * 0.5f - rect_size_.y * 0.5f },
-			cv::Point2f{ reso.x * 0.5f + rect_size_.x * 0.5f, reso.y * 0.5f + rect_size_.y * 0.5f },
-			cv::Point2f{ reso.x * 0.5f - rect_size_.x * 0.5f, reso.y * 0.5f + rect_size_.y * 0.5f }
+			plot({0.f, 0.f}, src, zoom),
+			plot({rect_size.x, 0.f}, src, zoom),
+			plot({rect_size.x, rect_size.y}, src, zoom),
+			plot({0.f, rect_size.y}, src, zoom)
 		};
 		auto mat = cv::getPerspectiveTransform(srcPoint, dstPoint);
 
@@ -123,7 +117,6 @@ namespace vt
 		float rate = (rect_size.x / rect_size.y) / (reso.x / reso.y);
 		float scale = (rate > 1.0f) ? (reso.x / rect_size.x) : (reso.y / rect_size.y);
 		scale *= zoom;
-		cv::Point2f rect_size_ = rect_size * scale;
 
 		p -= rect_size * 0.5f;
 		p *= scale;

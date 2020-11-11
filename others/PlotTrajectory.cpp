@@ -43,8 +43,6 @@ int main(int argc, char* argv[])
 	PlotFrameInfo plotFrameInfo;
 	PlotTrajectory plotTrajectory;
 
-	size_t frameNumber = 0;
-
 	cv::Mat frame = cv::Mat(720, 1280, CV_8UC3, { 0, 0, 0 });
 
 	for (size_t frameNumber = firstFrameNumber; frameNumber <= lastFrameNumber; frameNumber++)
