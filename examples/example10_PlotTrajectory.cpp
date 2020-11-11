@@ -19,8 +19,22 @@ int main(int argc, char* argv[])
 
 	// SQLファイルの読み込み、書き込みを行うクラス
 	SqlOpenPose sql;
-	ret = sql.open(R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\out2.mp4.sqlite3)");
+	ret = sql.open(R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\out1.mp4.sqlite3)");
 	if (ret) return ret;
+
+	// データベースに関する情報を取得する
+	SQLite::Statement infoQuery(*(sql.database),
+		u8"SELECT MIN(frame), MAX(frame), MIN(x), MIN(y), MAX(x), MAX(y) FROM trajectory"
+	);
+	infoQuery.executeStep();
+
+	// データベースに存在するフレームの最小値、最大値
+	size_t firstFrameNumber = (size_t)infoQuery.getColumn(0).getUInt();
+	size_t lastFrameNumber  = (size_t)infoQuery.getColumn(1).getUInt();
+	
+	// データベースに存在する座標の最小値、最大値
+	Node leftTop     = { (float)infoQuery.getColumn(2).getDouble(), (float)infoQuery.getColumn(3).getDouble() };
+	Node rightBottom = { (float)infoQuery.getColumn(4).getDouble(), (float)infoQuery.getColumn(5).getDouble() };
 
 	// プレビューウィンドウを生成するクラス
 	Preview preview("result");
@@ -28,12 +42,6 @@ int main(int argc, char* argv[])
 	// フレームレートなどを表示するクラス
 	PlotFrameInfo plotFrameInfo;
 	PlotTrajectory plotTrajectory;
-
-	// データベースに関する情報
-	size_t firstFrameNumber = 1;
-	size_t lastFrameNumber = 2329;
-	Node leftTop = { -0.599098145961762, -3.17585253715515 };
-	Node rightBottom = { 5.36959314346314, 1.66536796092987 };
 
 	size_t frameNumber = 0;
 
