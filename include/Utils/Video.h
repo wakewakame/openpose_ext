@@ -41,7 +41,7 @@ public:
 		if (!videoCapture.isOpened()) return ret;
 
 		// 一時停止状態かつ、画面を更新する必要がなければ以前取得したフレームを返す
-		if ((!play_) && (!needUpdate)) return buffer.clone();
+		if ((!play_) && (!needUpdate) && (!buffer.empty())) return buffer.clone();
 		needUpdate = false;
 
 		// 次のフレームを取得
