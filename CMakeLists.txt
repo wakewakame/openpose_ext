@@ -11,10 +11,10 @@ if (NOT EXISTS ${LIBRARIES_PATH})
 endif (NOT EXISTS ${LIBRARIES_PATH})
 
 # OpenPoseのライブラリをダウンロードする
-set(OPENPOSE_URL "https://github.com/CMU-Perceptual-Computing-Lab/openpose/releases/download/v1.5.1/openpose-1.5.1-binaries-win64-gpu-python-flir-3d_recommended.zip")
+set(OPENPOSE_URL "https://github.com/CMU-Perceptual-Computing-Lab/openpose/releases/download/v1.5.1/openpose-1.5.1-binaries-win64-gpu-flir-3d_recommended.zip")
 get_filename_component(OPENPOSE_ZIP_PATH "${OPENPOSE_URL}" NAME)
 set(OPENPOSE_ZIP_PATH "${LIBRARIES_PATH}/${OPENPOSE_ZIP_PATH}")
-string(REGEX REPLACE "\\.[^.]*$" "" OPENPOSE_DIR_PATH ${OPENPOSE_ZIP_PATH})
+set(OPENPOSE_DIR_PATH "${LIBRARIES_PATH}/openpose-1.5.1-binaries-win64-gpu-python-flir-3d_recommended")
 if (NOT EXISTS ${OPENPOSE_DIR_PATH})
 	if (NOT EXISTS ${OPENPOSE_ZIP_PATH})
 		message(STATUS "download : ${OPENPOSE_URL}")
