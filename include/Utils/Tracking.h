@@ -191,19 +191,34 @@ public:
 	{
 		Node result{ 0.0f, 0.0f, 1.0f };
 		float confidenceSum = 0.0f;
+
+		Node leftTop, rightBottom;
+		bool isFirst = true;
+
 		for (auto node : person)
 		{
-			// 信頼値が0の骨格は座標が(0, 0)になっているため除外する
-			if (node.confidence == 0.0f) continue;
-			result.x += node.x * node.confidence;
-			result.y += node.y * node.confidence;
-			confidenceSum += node.confidence;
+			if (0.0f == node.confidence) continue;
+			if (isFirst)
+			{
+				leftTop     = node;
+				rightBottom = node;
+				isFirst = false;
+			}
+			else
+			{
+				if (node.x < leftTop.x) leftTop.x = node.x;
+				if (node.y < leftTop.y) leftTop.y = node.y;
+				if (node.x > rightBottom.x) rightBottom.x = node.x;
+				if (node.y > rightBottom.y) rightBottom.y = node.y;
+			}
 		}
-		// 0割りを避ける
-		if (confidenceSum == 0.0f) return Node{ 0.0f, 0.0f, 0.0f };
-		result.x /= confidenceSum;
-		result.y /= confidenceSum;
-		return result;
+		if (isFirst) return Node{ 0.0f, 0.0f, 0.0f };
+		
+		return Node{
+			(leftTop.x * 0.5f) + (rightBottom.x * 0.5f),
+			(leftTop.y * 0.5f) + (rightBottom.y * 0.5f),
+			0.0f
+		};
 	}
 
 	// 骨格のmapを骨格の重心のmapに変換する

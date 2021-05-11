@@ -34,6 +34,21 @@ struct PlotFrameInfo
 		ret = gui::text(frame, "time : " + std::to_string(frameInfo_.frameTimeStamp), cv::Point{ 20, height }); height += ret.height + 10;
 		ret = gui::text(frame, "frame : " + std::to_string(frameInfo_.frameNumber) + " / " + std::to_string(frameInfo_.frameSum), cv::Point{ 20, height }); height += ret.height + 10;
 	}
+	void plotFPS(cv::Mat& frame)
+	{
+		// フレームが空かを確認する
+		if (frame.empty()) return;
+
+		// fpsの測定
+		end = clock::now();
+		auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		float fps = 1000.0f / (float)time;
+		start = end;
+
+		// fpsと動画の再生時間、フレーム番号の表示
+		cv::Size ret{ 0, 0 }; int height = 20;
+		ret = gui::text(frame, "fps : " + std::to_string(fps), cv::Point{ 20, height }); height += ret.height + 10;
+	}
 };
 
 // IDの描画

@@ -18,8 +18,8 @@ int main(int argc, char* argv[])
 	int ret = 0;
 
 	// 入力する映像ファイルのフルパス
-	std::string videoPath = R"(media/video.mp4)";
-	videoPath = R"(D:\思い出\Dropbox\Dropbox\SDK\openpose\video\out2.mp4)";
+	//std::string videoPath = R"(C:\Users\柴田研\Videos\guest002-2020-08-26_09-00-55.mp4)";
+	std::string videoPath = R"(media\video.mp4)";
 
 	// コンソール引数に動画のファイルパスを指定された場合はそのパスを優先する
 	if (argc == 2) videoPath = argv[1];
@@ -65,6 +65,7 @@ int main(int argc, char* argv[])
 	vt::ScreenToGround screenToGround;
 
 	// カメラの歪みを補正する設定
+	// 広角カメラ用の設定
 	screenToGround.setCalibration(
 		// カメラキャリブレーションを行った時のカメラの解像度, 出力画像の拡大率
 		1920, 1080, 0.5,
@@ -73,6 +74,17 @@ int main(int argc, char* argv[])
 		// カメラの歪み係数(k1, k2, k3, k4)
 		-0.08809225804249926, 0.03839093574614055, -0.060501971675431955, 0.033162385302275665
 	);
+	/*
+	// 普通のカメラ用の設定
+	screenToGround.setCalibration(
+		// カメラキャリブレーションを行った時のカメラの解像度, 出力画像の拡大率
+		1280, 720, 0.5,
+		// カメラ内部パラメータの焦点距離と中心座標(fx, fy, cx, cy)
+		1219.0406537545712, 1212.9035553155306, 666.8420423491999, 300.4775270052086,
+		// カメラの歪み係数(k1, k2, k3, k4)
+		-0.08337977502879604, 0.017859811179103444, 0.023083914028110008, -0.12379071119490138
+	);
+	*/
 
 	// カメラの映像を、地面を上から見たような映像に射影変換する
 	screenToGround.setParams(

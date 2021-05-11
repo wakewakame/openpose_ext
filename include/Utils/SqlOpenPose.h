@@ -181,7 +181,7 @@ public:
                 {
                     size_t index = (size_t)peopleQuery.getColumn(1).getInt64();
                     float x = (float)peopleQuery.getColumn(2).getDouble();
-                    float y = (float)peopleQuery.getColumn(2).getDouble();
+                    float y = (float)peopleQuery.getColumn(3).getDouble();
                     result[index] = Node{ x, y, 0.0 };
                 }
             }

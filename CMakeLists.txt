@@ -11,10 +11,10 @@ if (NOT EXISTS ${LIBRARIES_PATH})
 endif (NOT EXISTS ${LIBRARIES_PATH})
 
 # OpenPoseのライブラリをダウンロードする
-set(OPENPOSE_URL "https://github.com/CMU-Perceptual-Computing-Lab/openpose/releases/download/v1.5.1/openpose-1.5.1-binaries-win64-gpu-python-flir-3d_recommended.zip")
+set(OPENPOSE_URL "https://github.com/CMU-Perceptual-Computing-Lab/openpose/releases/download/v1.5.1/openpose-1.5.1-binaries-win64-gpu-flir-3d_recommended.zip")
 get_filename_component(OPENPOSE_ZIP_PATH "${OPENPOSE_URL}" NAME)
 set(OPENPOSE_ZIP_PATH "${LIBRARIES_PATH}/${OPENPOSE_ZIP_PATH}")
-string(REGEX REPLACE "\\.[^.]*$" "" OPENPOSE_DIR_PATH ${OPENPOSE_ZIP_PATH})
+set(OPENPOSE_DIR_PATH "${LIBRARIES_PATH}/openpose-1.5.1-binaries-win64-gpu-python-flir-3d_recommended")
 if (NOT EXISTS ${OPENPOSE_DIR_PATH})
 	if (NOT EXISTS ${OPENPOSE_ZIP_PATH})
 		message(STATUS "download : ${OPENPOSE_URL}")
@@ -125,6 +125,24 @@ target_link_options(openpose_ext PRIVATE $<$<CONFIG:Release>:/OPT:ICF>)
 
 # サンプルプログラムの作成
 file(GLOB_RECURSE ALL_EXAMPLE_FILES "${CMAKE_SOURCE_DIR}/examples/*.cpp")
+foreach(EXAMPLE_FILE IN ITEMS ${ALL_EXAMPLE_FILES})
+	get_filename_component(EXAMPLE_NAME ${EXAMPLE_FILE} NAME_WE)
+	add_executable("${EXAMPLE_NAME}" "${EXAMPLE_FILE}" "${ALL_CPP_FILES}")
+	target_include_directories("${EXAMPLE_NAME}" PRIVATE
+		"${CMAKE_SOURCE_DIR}/include"
+		"${OPENPOSE_DIR_PATH}/openpose/include"
+	)
+	target_link_libraries("${EXAMPLE_NAME}" ${OPENPOSE_LIB_FILES})
+	target_link_libraries("${EXAMPLE_NAME}" SQLiteCpp)
+	set_target_properties("${EXAMPLE_NAME}" PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${EXAMPLE_NAME}>")
+	target_compile_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/Zi>)
+	target_link_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/DEBUG>)
+	target_link_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/OPT:REF>)
+	target_link_options("${EXAMPLE_NAME}" PRIVATE $<$<CONFIG:Release>:/OPT:ICF>)
+endforeach()
+
+# そのほかのプログラムの作成
+file(GLOB_RECURSE ALL_EXAMPLE_FILES "${CMAKE_SOURCE_DIR}/others/*.cpp")
 foreach(EXAMPLE_FILE IN ITEMS ${ALL_EXAMPLE_FILES})
 	get_filename_component(EXAMPLE_NAME ${EXAMPLE_FILE} NAME_WE)
 	add_executable("${EXAMPLE_NAME}" "${EXAMPLE_FILE}" "${ALL_CPP_FILES}")
