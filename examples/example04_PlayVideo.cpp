@@ -44,10 +44,13 @@ int main(int argc, char* argv[])
 		plotBone(image, people, openpose);
 
 		// 画面を更新する
-		preview.preview(image);
+		int ret = preview.preview(image);
 
 		// 再生の操作画面を表示する
 		videoControllUI.showUI(video);
+
+		// Escキーが押されたら終了する
+		if (0x1b == ret) break;
 	}
 
 	return 0;

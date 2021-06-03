@@ -77,7 +77,10 @@ int main(int argc, char* argv[])
 		plotBone(image, people, openpose);
 
 		// 画面を更新する
-		preview.preview(image);
+		int ret  = preview.preview(image);
+
+		// Escキーが押されたら終了する
+		if (0x1b == ret) break;
 	}
 
 	return 0;

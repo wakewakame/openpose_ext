@@ -91,7 +91,10 @@ int main(int argc, char* argv[])
 		plotId(image, trackedPeople);  // 人のIDの描画
 
 		// 画面を更新する
-		preview.preview(image);
+		int ret = preview.preview(image);
+
+		// Escキーが押されたら終了する
+		if (0x1b == ret) break;
 	}
 
 	return 0;
