@@ -16,6 +16,14 @@ example08_CountLine.cppとの違いは入力に動画ではなくWebカメラを使用している点です
 
 int main(int argc, char* argv[])
 {
+	/*
+	Windowsで起動が失敗する場合
+		cv::VideoCapture webcam(0);
+	の行を
+		cv::VideoCapture webcam(cv::CAP_DSHOW + 0);
+	に書き換えると治るかもしれないです。
+	*/
+
 	// webカメラを開く
 	cv::VideoCapture webcam(0);
 	if (!webcam.isOpened()) {
