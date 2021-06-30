@@ -13,19 +13,50 @@ example08_CountLine.cppとの違いは入力に動画ではなくWebカメラを使用している点です
 #include <Utils/Tracking.h>
 #include <Utils/PeopleCounter.h>
 #include <time.h>
+#include <thread>
 
 int main(int argc, char* argv[])
 {
 	/*
-	Windowsで起動が失敗する場合
-		cv::VideoCapture webcam(0);
-	の行を
-		cv::VideoCapture webcam(cv::CAP_DSHOW + 0);
-	に書き換えると治るかもしれないです。
+	example10_CountLineWebcamをコマンドラインから呼ぶときのメモ
+
+	コマンドライン引数の説明
+			example10_CountLineWebcam <rtmpのURL> <直線の開始X座標> <直線の開始Y座標><直線の終了X座標> <直線の終了Y座標> <直線の太さ>
+
+			例: example10_CountLineWebcam "rtmp://10.0.0.1/live/guest001" 0 240 640 240 5
+
+	なお、直線の指定を省略するとデフォルトの値が使用される
+	rtmpのURLを省略すると、USB接続されているWebカメラが使用される
 	*/
 
-	// webカメラを開く
-	cv::VideoCapture webcam(0);
+	cv::VideoCapture webcam;
+	int startX = 0, startY = 240, endX = 1920, endY = 240, lineWeight = 0;
+	if (argc >= 2) {
+		// コマンドライン引数の第1引数にカメラのURLを指定できる
+		webcam.open(argv[1]);
+		if (argc >= 7) {
+			// コマンドライン引数の第2引数: 直線の開始地点のx座標
+			// コマンドライン引数の第3引数: 直線の開始地点のy座標
+			// コマンドライン引数の第4引数: 直線の終了地点のx座標
+			// コマンドライン引数の第5引数: 直線の終了地点のy座標
+			startX = atoi(argv[2]);
+			startY = atoi(argv[3]);
+			endX =   atoi(argv[4]);
+			endY =   atoi(argv[5]);
+			lineWeight = atoi(argv[6]);
+		}
+	}
+	else {
+		webcam.open(0);
+		/*
+		Windowsで起動が失敗する場合
+			webcam.open(0);
+		の行を
+			webcam.open(cv::CAP_DSHOW + 0);
+		に書き換えると治るかもしれないです。
+		*/
+	}
+
 	if (!webcam.isOpened()) {
 		std::cout << "failed to open the web camera" << std::endl;
 		return 0;
@@ -56,32 +87,46 @@ int main(int argc, char* argv[])
 		0.5f,  // 関節の信頼値がこの値以下である場合は、関節が存在しないものとして処理する
 		5,     // 信頼値がconfidenceThresholdより大きい関節の数がこの値未満である場合は、その人がいないものとして処理する
 		10,    // 一度トラッキングが外れた人がこのフレーム数が経過しても再発見されない場合は、消失したものとして処理する
-		50.0f  // トラッキング中の人が1フレーム進んだとき、移動距離がこの値よりも大きい場合は同一人物の候補から外す
+		150.0f  // トラッキング中の人が1フレーム進んだとき、移動距離がこの値よりも大きい場合は同一人物の候補から外す
 	);
 
 	// 通行人をカウントするクラス
 	PeopleCounter count(
-		250, 0,    // 直線の始点座標 (X, Y)
-		250, 500,  // 直線の終点座標 (X, Y)
-		10         // 直線の太さ
+		startX, startY,    // 直線の始点座標 (X, Y)
+		endX  , endY  ,  // 直線の終点座標 (X, Y)
+		lineWeight         // 直線の太さ
 	);
+
+	cv::Mat image, image2;
+	bool exitFlag = false;
+	// 動画の次のフレームを読み込む
+	if (!webcam.read(image2)) return 0;
+	// 別スレッドで動画を読み込む
+	std::mutex mtx;
+	std::thread th([&]() {
+		while (true) {
+			std::scoped_lock{ mtx };
+			if (exitFlag) break;
+			if (!webcam.read(image2)) break;
+			if (image2.empty()) break;
+		}
+	});
 
 	// 動画が終わるまでループする
 	uint64_t frameNumber = 0;
 	while (true)
 	{
-		// 動画の次のフレームを読み込む
-		cv::Mat image;
-		if (!webcam.read(image)) { break; }
+		// 別スレッドで読み込んだ動画をコピー
+		{
+			std::scoped_lock{ mtx };
+			image = image2.clone();
+		}
 
 		// 映像が終了した場合はループを抜ける
 		if (image.empty()) break;
 
 		// 姿勢推定
 		MinOpenPose::People people = openpose.estimate(image);
-
-		// 結果を SQL に保存
-		sql.writeBones(frameNumber, frameNumber, people);
 
 		// トラッキング
 		auto tracked_people = tracker.tracking(people, sql, frameNumber).value();
@@ -95,8 +140,8 @@ int main(int argc, char* argv[])
 		// 姿勢推定の結果を image に描画する
 		plotBone(image, tracked_people, openpose);
 
-		// 人のIDの描画
-		plotId(image, tracked_people);  // 人のIDの描画
+
+		cv::resize(image, image, cv::Size(640, 480) );
 
 		// 画面を更新する
 		int ret = preview.preview(image);
@@ -106,6 +151,15 @@ int main(int argc, char* argv[])
 
 		frameNumber += 1;
 	}
+
+	// スレッドの終了フラグを立てる
+	{
+		std::scoped_lock{ mtx };
+		exitFlag = true;
+	}
+
+	// スレッドの終了を待つ
+	th.join();
 
 	return 0;
 }
